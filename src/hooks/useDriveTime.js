@@ -194,8 +194,13 @@ export function mapLinks(origin, destination) {
   const to = encodeURIComponent((destination ?? "").trim());
   if (!to) return null;
   return {
-    google: `https://www.google.com/maps/dir/?api=1&origin=${from}&destination=${to}&travelmode=driving`,
-    // Apple uses saddr/daddr; dirflg=d selects driving.
+    // dir_action=navigate starts turn-by-turn immediately on mobile rather than
+    // showing the route for the user to tap Go on. On desktop it's ignored and
+    // the route simply opens, which is the sensible fallback.
+    google: `https://www.google.com/maps/dir/?api=1&origin=${from}&destination=${to}&travelmode=driving&dir_action=navigate`,
+    // Apple uses saddr/daddr; dirflg=d selects driving. Apple's URL scheme has no
+    // documented equivalent of dir_action=navigate, so this opens the route and
+    // the driver taps Go — not something a different URL can fix.
     apple: `https://maps.apple.com/?saddr=${from}&daddr=${to}&dirflg=d`,
   };
 }
