@@ -7,7 +7,15 @@ export function useContinueListening() {
 
   const startPlaying = useCallback(
     (item) => {
-      setNowPlaying({ id: item.id, title: item.title, category: item.category, gradient: item.gradient, progress: 0 });
+      setNowPlaying({
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        gradient: item.gradient,
+        // Needed to reload the video after a refresh, not just to start it.
+        youtubeId: item.youtubeId,
+        progress: 0,
+      });
     },
     [setNowPlaying]
   );
@@ -23,7 +31,21 @@ export function useContinueListening() {
     [setNowPlaying]
   );
 
+  /**
+   * Record where playback actually is. Seconds are stored alongside the
+   * percentage because resuming has to seek before the video's duration is
+   * known, so a percentage on its own can't be converted back to a position.
+   */
+  const savePosition = useCallback(
+    ({ progress, positionSeconds }) => {
+      setNowPlaying((prev) =>
+        prev ? { ...prev, progress: Math.min(100, Math.max(0, progress)), positionSeconds } : prev
+      );
+    },
+    [setNowPlaying]
+  );
+
   const stopPlaying = useCallback(() => setNowPlaying(null), [setNowPlaying]);
 
-  return { nowPlaying, startPlaying, setProgress, stopPlaying };
+  return { nowPlaying, startPlaying, setProgress, savePosition, stopPlaying };
 }

@@ -26,6 +26,7 @@ export const RECENT_SEARCHES_DEFAULT = [
 export const ITEMS = [
   {
     id: "it_01",
+    youtubeId: "LV801eQzUQ0",
     type: "podcast",
     title: "The Fall of Rome: An Empire's Last Day",
     description: "A vivid, narrative retelling of the final hours of the Western Roman Empire and the chain of decisions that ended an era.",
@@ -41,6 +42,7 @@ export const ITEMS = [
   },
   {
     id: "it_02",
+    youtubeId: "1LYSfpKog4w",
     type: "podcast",
     title: "Black Holes: The Edge of What We Know",
     description: "Astronomers unpack event horizons, Hawking radiation, and the first image of a supermassive black hole.",
@@ -56,6 +58,7 @@ export const ITEMS = [
   },
   {
     id: "it_03",
+    youtubeId: "oR3r57z81bE",
     type: "attraction",
     title: "Cadillac Ranch",
     description: "Ten graffiti-covered Cadillacs buried nose-down in a Texas wheat field — an iconic, free roadside art installation.",
@@ -71,6 +74,7 @@ export const ITEMS = [
   },
   {
     id: "it_04",
+    youtubeId: "l8zKjchR8hM",
     type: "trail",
     title: "Emerald Pool Loop Trail",
     description: "A moderate 3-mile loop to a hidden emerald swimming hole surrounded by old-growth forest.",
@@ -86,6 +90,7 @@ export const ITEMS = [
   },
   {
     id: "it_05",
+    youtubeId: "xRY82CZODDg",
     type: "podcast",
     title: "How Compound Interest Built Empires",
     description: "The surprising history of interest, debt, and the financial instruments that quietly shaped civilization.",
@@ -101,6 +106,7 @@ export const ITEMS = [
   },
   {
     id: "it_06",
+    youtubeId: "dYE14rq6-v4",
     type: "museum",
     title: "Museum of Jurassic Technology",
     description: "A cabinet-of-curiosities museum blending real artifacts with beguiling fiction — an unforgettable, uncanny visit.",
@@ -116,6 +122,7 @@ export const ITEMS = [
   },
   {
     id: "it_07",
+    youtubeId: "UKbrwPL3wXE",
     type: "podcast",
     title: "CRISPR and the Code of Life",
     description: "How a bacterial defense system became the most powerful gene-editing tool in history — and where it's headed.",
@@ -131,6 +138,7 @@ export const ITEMS = [
   },
   {
     id: "it_08",
+    youtubeId: "JJoXHys0QBU",
     type: "attraction",
     title: "Mystery Hole — Gravity Gone Wrong",
     description: "A classic roadside oddity where water flows uphill and the laws of physics feel optional. Pure roadside kitsch.",
@@ -146,6 +154,7 @@ export const ITEMS = [
   },
   {
     id: "it_09",
+    youtubeId: "xlwTQh0yKbE",
     type: "trail",
     title: "Sunset Ridge Overlook Hike",
     description: "A short, steep climb to a panoramic ridge overlooking the valley — best timed for golden hour.",
@@ -161,6 +170,7 @@ export const ITEMS = [
   },
   {
     id: "it_10",
+    youtubeId: "dpmo0Iy9nNw",
     type: "podcast",
     title: "The Apollo Program: Voices from Mission Control",
     description: "Original audio and untold stories from the engineers who put humans on the Moon.",
@@ -176,6 +186,7 @@ export const ITEMS = [
   },
   {
     id: "it_11",
+    youtubeId: "M-SHfj3E8YQ",
     type: "museum",
     title: "National Air and Space Museum",
     description: "The world's largest collection of historic aircraft and spacecraft — from the Wright Flyer to Apollo 11.",
@@ -191,6 +202,7 @@ export const ITEMS = [
   },
   {
     id: "it_12",
+    youtubeId: "6VioXfmXcLs",
     type: "attraction",
     title: "The World's Largest Ball of Twine",
     description: "A monument to American roadside ambition — one town's giant, twine-wound claim to fame. Free and bizarre.",
@@ -206,6 +218,7 @@ export const ITEMS = [
   },
   {
     id: "it_13",
+    youtubeId: "l3inbx2jeZU",
     type: "podcast",
     title: "The Psychology of Pricing",
     description: "Why $9.99 feels so much cheaper than $10 — the behavioral science behind every price tag you see.",
@@ -221,6 +234,7 @@ export const ITEMS = [
   },
   {
     id: "it_14",
+    youtubeId: "2zzn3uJPvIU",
     type: "trail",
     title: "Old Growth Cathedral Grove",
     description: "An easy, flat walk through 800-year-old redwoods — a humbling, silent cathedral of nature.",
@@ -236,6 +250,7 @@ export const ITEMS = [
   },
   {
     id: "it_15",
+    youtubeId: "7CPv0NSIG2M",
     type: "podcast",
     title: "Plate Tectonics: The Slow Dance of Continents",
     description: "How drifting plates built the mountains you drive through — and the earthquakes that reshape the map.",
@@ -251,6 +266,7 @@ export const ITEMS = [
   },
   {
     id: "it_16",
+    youtubeId: "rmOLuZ8XYPs",
     type: "attraction",
     title: "Wigwam Village Motel #6",
     description: "Sleep in a concrete teepee along historic Route 66 — one of the last surviving wigwam motels in America.",
