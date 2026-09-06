@@ -3,6 +3,7 @@ import { MapPin, Clock, Sparkles, Save, Trash2, Route as RouteIcon, Check } from
 import { useAppStore } from "@/lib/AppStore";
 import { CATEGORIES, FEATURED_CATEGORY_IDS, queryForCategory } from "@/lib/contentData";
 import { useYouTubeSearches } from "@/hooks/useYouTubeSearch";
+import DrivePanel from "@/components/DrivePanel";
 import ItemRow from "@/components/ItemRow";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +70,10 @@ export default function TripPlanner() {
         <h1 className="text-display text-[32px] font-extrabold tracking-tight leading-tight">Trip Planner</h1>
         <p className="text-muted-foreground text-[13px] font-medium">Curate listens and stops along your route</p>
       </div>
+
+      {/* Starting a drive belongs here rather than on Home — this is the screen
+          where entering trip details is the point. */}
+      <DrivePanel variant="setup" />
 
       <div className="space-y-4 glass hairline rounded-3xl p-5">
         <div>

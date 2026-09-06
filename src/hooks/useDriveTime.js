@@ -1,21 +1,56 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 
 // The user's current drive, used as a ceiling on how long a video can be.
 //
 // The lookup runs on the server (/api/route) so the Maps key stays there; this
-// hook only holds the result and the request state. The trip is persisted because
-// a commute doesn't change between sessions — reopening the app on the same drive
-// shouldn't mean re-entering it.
+// hook only holds the result and the request state.
+//
+// A drive is treated as ACTIVE only while it could plausibly still be underway:
+// from when it was looked up until its duration has elapsed, plus a grace window
+// for traffic and stops. After that it expires by itself and stops filtering
+// anything.
+//
+// Worth being clear about the limit: the browser cannot see whether you are
+// actually navigating in Google or Apple Maps — no API exposes another app's
+// turn-by-turn state. Elapsed time is the closest honest approximation. Tracking
+// real movement would need the Geolocation API (permission prompt, battery cost).
 
 const STORAGE_KEY = "drivecast:drive";
 
-const EMPTY = { origin: "", destination: "", durationMinutes: null, distanceMiles: null, fetchedAt: null };
+// Drives run long: traffic, a coffee stop. Better to keep filtering slightly too
+// long than to drop it while someone is still in the car.
+const GRACE_MS = 30 * 60 * 1000;
+
+const EMPTY = {
+  origin: "",
+  destination: "",
+  durationMinutes: null,
+  distanceMiles: null,
+  fetchedAt: null,
+  startedAt: null,
+};
+
+const isStillUnderway = (drive) => {
+  if (!drive?.durationMinutes || !drive?.startedAt) return false;
+  return Date.now() < drive.startedAt + drive.durationMinutes * 60_000 + GRACE_MS;
+};
 
 export function useDriveTime() {
   const [drive, setDrive] = useLocalStorage(STORAGE_KEY, EMPTY);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Expiry has to be re-evaluated over time, not just on interaction, or a drive
+  // would keep filtering until the next click.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!drive?.durationMinutes) return;
+    const timer = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(timer);
+  }, [drive?.durationMinutes, drive?.startedAt]);
+
+  const isDriveActive = isStillUnderway(drive);
 
   /** Look up a drive and store it. Returns the result, or null on failure. */
   const lookupDrive = useCallback(
@@ -46,6 +81,8 @@ export function useDriveTime() {
           durationMinutes: payload.durationMinutes,
           distanceMiles: payload.distanceMiles,
           fetchedAt: payload.fetchedAt ?? Date.now(),
+          // The clock the drive expires against.
+          startedAt: Date.now(),
         };
         setDrive(next);
         return next;
@@ -64,9 +101,21 @@ export function useDriveTime() {
     setError(null);
   }, [setDrive]);
 
+  /** Minutes remaining, so the panel can count down rather than show a static figure. */
+  const minutesRemaining = isDriveActive
+    ? Math.max(
+        0,
+        Math.round((drive.startedAt + drive.durationMinutes * 60_000 - Date.now()) / 60_000)
+      )
+    : null;
+
   return {
     drive,
-    driveMinutes: drive?.durationMinutes ?? null,
+    isDriveActive,
+    minutesRemaining,
+    // Null unless a drive is actually underway, so an expired trip stops
+    // filtering content on its own.
+    driveMinutes: isDriveActive ? drive.durationMinutes : null,
     isLoading,
     error,
     lookupDrive,

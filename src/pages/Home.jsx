@@ -81,7 +81,7 @@ export default function Home() {
         <SearchResults query={query} committedQuery={committedQuery} search={search} />
       ) : (
         <>
-          <DrivePanel />
+          <DrivePanel variant="status" />
 
           <FilterPills
             options={CATEGORIES.map((c) => ({ id: c.id, label: c.name }))}

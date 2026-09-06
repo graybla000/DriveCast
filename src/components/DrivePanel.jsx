@@ -1,20 +1,110 @@
 import React, { useState } from "react";
 import { Car, MapPin, X, AlertCircle, CreditCard, KeyRound, Navigation, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/lib/AppStore";
 import { mapLinks } from "@/hooks/useDriveTime";
 import { cn } from "@/lib/utils";
 
 const formatDrive = (minutes) => {
-  if (!minutes) return "";
+  if (minutes == null) return "";
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return h > 0 ? `${h}h ${m}m` : `${m} min`;
 };
 
-// Set the current drive, and show it once set. The drive time becomes a ceiling
-// on video length everywhere else in the app.
-export default function DrivePanel() {
-  const { drive, driveMinutes, driveLoading, driveError, lookupDrive, clearDrive } = useAppStore();
+/**
+ * Two shapes, because they belong in different places:
+ *
+ *  variant="status" — a quiet one-line readout for Home. Shows the live drive if
+ *    one is underway, otherwise just says there isn't one. Never a form: asking
+ *    for trip details on every visit is noise.
+ *  variant="setup"  — the full form, on the Plan tab, where entering a trip is
+ *    the point of the screen.
+ */
+export default function DrivePanel({ variant = "status" }) {
+  return variant === "setup" ? <DriveSetup /> : <DriveStatus />;
+}
+
+function DriveStatus() {
+  const navigate = useNavigate();
+  const { drive, driveMinutes, isDriveActive, minutesRemaining, clearDrive } = useAppStore();
+
+  if (!isDriveActive) {
+    return (
+      <button
+        onClick={() => navigate("/plan")}
+        className="w-full flex items-center justify-between px-4 h-12 rounded-2xl glass hairline active:scale-[0.98] transition-transform"
+      >
+        <span className="flex items-center gap-2.5 text-[13px] font-semibold text-muted-foreground">
+          <Car size={15} /> No active drive
+        </span>
+        <span className="text-[12px] font-bold text-accent">Plan one</span>
+      </button>
+    );
+  }
+
+  const links = mapLinks(drive.origin, drive.destination);
+
+  return (
+    <div className="rounded-2xl glass hairline p-3.5 space-y-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent">
+            <Car size={12} /> Driving now
+          </p>
+          <p className="text-[13px] font-semibold truncate mt-0.5">
+            {drive.origin} → {drive.destination}
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-display text-[20px] font-extrabold tracking-tight leading-none">
+            {formatDrive(minutesRemaining)}
+          </p>
+          <p className="text-[10px] font-semibold text-muted-foreground mt-0.5">left</p>
+        </div>
+      </div>
+
+      <p className="text-[11px] font-semibold text-muted-foreground">
+        Showing only what fits in {formatDrive(driveMinutes)}
+        {drive.distanceMiles ? ` · ${drive.distanceMiles} mi` : ""}
+      </p>
+
+      <div className="flex items-center gap-2">
+        {links && (
+          <>
+            <a
+              href={links.google}
+              target="_blank"
+              rel="noreferrer"
+              className="flex-1 h-9 rounded-lg glass hairline flex items-center justify-center gap-1.5 text-[11.5px] font-bold active:scale-95 transition-transform"
+            >
+              <Navigation size={12} /> Google
+            </a>
+            <a
+              href={links.apple}
+              target="_blank"
+              rel="noreferrer"
+              className="flex-1 h-9 rounded-lg glass hairline flex items-center justify-center gap-1.5 text-[11.5px] font-bold active:scale-95 transition-transform"
+            >
+              <MapPin size={12} /> Apple
+            </a>
+          </>
+        )}
+        <button
+          onClick={clearDrive}
+          aria-label="End drive"
+          className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground active:scale-90 transition-transform"
+        >
+          <X size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DriveSetup() {
+  const { drive, driveMinutes, isDriveActive, minutesRemaining, driveLoading, driveError, lookupDrive, clearDrive } =
+    useAppStore();
   const [origin, setOrigin] = useState(drive?.origin ?? "");
   const [destination, setDestination] = useState(drive?.destination ?? "");
 
@@ -23,9 +113,7 @@ export default function DrivePanel() {
     lookupDrive(origin, destination);
   };
 
-  const links = driveMinutes ? mapLinks(drive.origin, drive.destination) : null;
-
-  // Distinct icons for the setup problems, since each needs a different fix.
+  // Each setup failure needs a different fix, so they get different icons.
   const ErrorIcon =
     driveError?.kind === "no_key" || driveError?.kind === "bad_key"
       ? KeyRound
@@ -33,23 +121,15 @@ export default function DrivePanel() {
         ? CreditCard
         : AlertCircle;
 
+  const links = isDriveActive ? mapLinks(drive.origin, drive.destination) : null;
+
   return (
     <div className="glass hairline rounded-2xl p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-display text-[17px] font-bold tracking-tight">
-          <Car size={17} className="text-accent" /> Your drive
-        </h2>
-        {driveMinutes ? (
-          <button
-            onClick={clearDrive}
-            className="flex items-center gap-1 text-[12px] font-semibold text-muted-foreground active:scale-95 transition-transform"
-          >
-            <X size={13} /> Clear
-          </button>
-        ) : null}
-      </div>
+      <h2 className="flex items-center gap-2 text-display text-[17px] font-bold tracking-tight">
+        <Car size={17} className="text-accent" /> Your drive
+      </h2>
 
-      {driveMinutes ? (
+      {isDriveActive ? (
         <>
           <div className="flex items-baseline gap-2">
             <span className="text-display text-[30px] font-extrabold tracking-tight text-accent">
@@ -63,7 +143,7 @@ export default function DrivePanel() {
             {drive.origin} → {drive.destination}
           </p>
           <p className="text-[11.5px] font-semibold text-accent">
-            Only showing content that fits in {formatDrive(driveMinutes)}.
+            {formatDrive(minutesRemaining)} left · only showing content that fits
           </p>
 
           {links && (
@@ -86,9 +166,19 @@ export default function DrivePanel() {
               </a>
             </div>
           )}
+
+          <button
+            onClick={clearDrive}
+            className="w-full h-11 rounded-xl glass hairline flex items-center justify-center gap-2 text-[13px] font-semibold text-muted-foreground active:scale-[0.98] transition-transform"
+          >
+            <X size={14} /> End drive
+          </button>
         </>
       ) : (
         <form onSubmit={submit} className="space-y-2">
+          <p className="text-[12.5px] font-medium text-muted-foreground leading-relaxed">
+            Set your route and DriveCast will only suggest content that fits the drive.
+          </p>
           <input
             value={origin}
             onChange={(e) => setOrigin(e.target.value)}
@@ -117,7 +207,7 @@ export default function DrivePanel() {
               </>
             ) : (
               <>
-                <Car size={16} /> Get drive time
+                <Car size={16} /> Start drive
               </>
             )}
           </button>
