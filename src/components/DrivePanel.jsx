@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Car, MapPin, X, AlertCircle, CreditCard, KeyRound, Navigation, Loader2 } from "lucide-react";
+import { Car, MapPin, X, AlertCircle, CreditCard, KeyRound, Navigation, Loader2, LocateFixed } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/lib/AppStore";
 import { mapLinks } from "@/hooks/useDriveTime";
@@ -27,7 +27,7 @@ export default function DrivePanel({ variant = "status" }) {
 
 function DriveStatus() {
   const navigate = useNavigate();
-  const { drive, driveMinutes, isDriveActive, minutesRemaining, clearDrive } = useAppStore();
+  const { drive, driveMinutes, isDriveActive, clearDrive } = useAppStore();
 
   if (!isDriveActive) {
     return (
@@ -50,23 +50,24 @@ function DriveStatus() {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent">
-            <Car size={12} /> Driving now
+            <Car size={12} /> Your drive
           </p>
           <p className="text-[13px] font-semibold truncate mt-0.5">
-            {drive.origin} → {drive.destination}
+            {drive.originLabel || drive.origin} → {drive.destination}
           </p>
         </div>
+        {/* Total drive time, not a countdown: the app has no idea how far along
+            you are, and showing "minutes left" would be inventing that. */}
         <div className="text-right shrink-0">
           <p className="text-display text-[20px] font-extrabold tracking-tight leading-none">
-            {formatDrive(minutesRemaining)}
+            {formatDrive(driveMinutes)}
           </p>
-          <p className="text-[10px] font-semibold text-muted-foreground mt-0.5">left</p>
+          <p className="text-[10px] font-semibold text-muted-foreground mt-0.5">drive</p>
         </div>
       </div>
 
       <p className="text-[11px] font-semibold text-muted-foreground">
-        Showing only what fits in {formatDrive(driveMinutes)}
-        {drive.distanceMiles ? ` · ${drive.distanceMiles} mi` : ""}
+        Showing only what fits{drive.distanceMiles ? ` · ${drive.distanceMiles} mi` : ""}
       </p>
 
       <div className="flex items-center gap-2">
@@ -103,14 +104,35 @@ function DriveStatus() {
 }
 
 function DriveSetup() {
-  const { drive, driveMinutes, isDriveActive, minutesRemaining, driveLoading, driveError, lookupDrive, clearDrive } =
-    useAppStore();
+  const {
+    drive,
+    driveMinutes,
+    isDriveActive,
+    driveLoading,
+    driveError,
+    lookupDrive,
+    clearDrive,
+    locateMe,
+    isLocating,
+    locationError,
+  } = useAppStore();
   const [origin, setOrigin] = useState(drive?.origin ?? "");
   const [destination, setDestination] = useState(drive?.destination ?? "");
+  // Set when the origin is coordinates from the browser, so the UI can show
+  // "Current location" instead of a raw lat/lng pair.
+  const [originLabel, setOriginLabel] = useState(drive?.originLabel ?? null);
+
+  const useMyLocation = async () => {
+    const coords = await locateMe();
+    if (coords) {
+      setOrigin(coords);
+      setOriginLabel("Current location");
+    }
+  };
 
   const submit = (e) => {
     e.preventDefault();
-    lookupDrive(origin, destination);
+    lookupDrive(origin, destination, { originLabel });
   };
 
   // Each setup failure needs a different fix, so they get different icons.
@@ -140,10 +162,10 @@ function DriveSetup() {
             ) : null}
           </div>
           <p className="text-[12.5px] font-medium text-muted-foreground leading-relaxed">
-            {drive.origin} → {drive.destination}
+            {drive.originLabel || drive.origin} → {drive.destination}
           </p>
           <p className="text-[11.5px] font-semibold text-accent">
-            {formatDrive(minutesRemaining)} left · only showing content that fits
+            Only showing content that fits this drive
           </p>
 
           {links && (
@@ -179,12 +201,27 @@ function DriveSetup() {
           <p className="text-[12.5px] font-medium text-muted-foreground leading-relaxed">
             Set your route and DriveCast will only suggest content that fits the drive.
           </p>
-          <input
-            value={origin}
-            onChange={(e) => setOrigin(e.target.value)}
-            placeholder="Start — e.g. Kent, WA"
-            className="w-full h-11 px-3.5 rounded-xl bg-muted/50 hairline text-[14px] font-medium placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-accent/50"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              value={originLabel ?? origin}
+              onChange={(e) => {
+                setOrigin(e.target.value);
+                setOriginLabel(null); // typing replaces the located position
+              }}
+              placeholder="Start — e.g. Kent, WA"
+              className="flex-1 min-w-0 h-11 px-3.5 rounded-xl bg-muted/50 hairline text-[14px] font-medium placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-accent/50"
+            />
+            <button
+              type="button"
+              onClick={useMyLocation}
+              disabled={isLocating}
+              aria-label="Use my location"
+              title="Use my location"
+              className="w-11 h-11 shrink-0 rounded-xl glass hairline flex items-center justify-center text-accent active:scale-90 transition-transform disabled:opacity-50"
+            >
+              {isLocating ? <Loader2 size={17} className="animate-spin" /> : <LocateFixed size={17} />}
+            </button>
+          </div>
           <input
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
@@ -214,10 +251,16 @@ function DriveSetup() {
         </form>
       )}
 
-      {driveError && (
+      {(driveError || locationError) && (
         <div className="flex items-start gap-2 pt-1">
-          <ErrorIcon size={14} className="text-destructive mt-0.5 shrink-0" />
-          <p className="text-[11.5px] font-medium text-muted-foreground leading-relaxed">{driveError.message}</p>
+          {driveError ? (
+            <ErrorIcon size={14} className="text-destructive mt-0.5 shrink-0" />
+          ) : (
+            <LocateFixed size={14} className="text-destructive mt-0.5 shrink-0" />
+          )}
+          <p className="text-[11.5px] font-medium text-muted-foreground leading-relaxed">
+            {driveError?.message ?? locationError}
+          </p>
         </div>
       )}
     </div>

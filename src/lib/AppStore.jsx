@@ -110,6 +110,11 @@ export function AppStoreProvider({ children }) {
     driveError: driveTime.error,
     lookupDrive: driveTime.lookupDrive,
     clearDrive: driveTime.clearDrive,
+    isDriveActive: driveTime.isDriveActive,
+    minutesRemaining: driveTime.minutesRemaining,
+    locateMe: driveTime.locate,
+    isLocating: driveTime.isLocating,
+    locationError: driveTime.locationError,
     /** Videos that fit the current drive. Returns everything when no drive is set. */
     fitsDrive: (videos) =>
       driveTime.driveMinutes

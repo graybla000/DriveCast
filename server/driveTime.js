@@ -41,6 +41,27 @@ export class RouteError extends Error {
   }
 }
 
+// "47.3809,-122.2348" — what the browser's Geolocation API gives us.
+const COORD_RE = /^\s*(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$/;
+
+/**
+ * Routes API waypoints accept either a free-text address or explicit
+ * coordinates. Sending coordinates when we have them avoids a geocoding step
+ * (and a second API to enable), and is more precise than any address string.
+ */
+function toWaypoint(value) {
+  const m = String(value).match(COORD_RE);
+  if (!m) return { address: String(value) };
+
+  const latitude = Number(m[1]);
+  const longitude = Number(m[2]);
+  // Out-of-range numbers are far more likely to be an address that happens to
+  // look like a pair of numbers, so fall back rather than send a bad waypoint.
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return { address: String(value) };
+
+  return { location: { latLng: { latitude, longitude } } };
+}
+
 /** "1234s" -> 1234 */
 function parseDurationSeconds(value) {
   if (typeof value === "number") return value;
@@ -80,8 +101,8 @@ export async function computeDriveTime(origin, destination) {
         "X-Goog-FieldMask": "routes.duration,routes.distanceMeters",
       },
       body: JSON.stringify({
-        origin: { address: from },
-        destination: { address: to },
+        origin: toWaypoint(from),
+        destination: toWaypoint(to),
         travelMode: "DRIVE",
         // Live traffic. TRAFFIC_AWARE needs no departureTime (it assumes now).
         routingPreference: "TRAFFIC_AWARE",

@@ -40,6 +40,8 @@ export function useDriveTime() {
   const [drive, setDrive] = useLocalStorage(STORAGE_KEY, EMPTY);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState(null);
 
   // Expiry has to be re-evaluated over time, not just on interaction, or a drive
   // would keep filtering until the next click.
@@ -52,9 +54,13 @@ export function useDriveTime() {
 
   const isDriveActive = isStillUnderway(drive);
 
-  /** Look up a drive and store it. Returns the result, or null on failure. */
+  /**
+   * Look up a drive and store it. Returns the result, or null on failure.
+   * `originLabel` is what to display when the origin is raw coordinates —
+   * "Current location" reads better than "47.38091,-122.23484".
+   */
   const lookupDrive = useCallback(
-    async (origin, destination) => {
+    async (origin, destination, { originLabel } = {}) => {
       const from = (origin ?? "").trim();
       const to = (destination ?? "").trim();
       if (!from || !to) {
@@ -77,6 +83,7 @@ export function useDriveTime() {
 
         const next = {
           origin: payload.origin,
+          originLabel: originLabel ?? null,
           destination: payload.destination,
           durationMinutes: payload.durationMinutes,
           distanceMiles: payload.distanceMiles,
@@ -101,6 +108,54 @@ export function useDriveTime() {
     setError(null);
   }, [setDrive]);
 
+  /**
+   * Current position as a "lat,lng" string the route lookup accepts directly.
+   *
+   * Sent as coordinates rather than reverse-geocoded to an address: that would
+   * need the Geocoding API enabled as well, and coordinates are more precise
+   * anyway. The readable label is handled separately by the caller.
+   *
+   * Requires a secure context — HTTPS or localhost. Over plain HTTP the API is
+   * simply absent, which is why that case is reported distinctly.
+   */
+  const locate = useCallback(
+    () =>
+      new Promise((resolve) => {
+        if (!("geolocation" in navigator)) {
+          setLocationError(
+            window.isSecureContext === false
+              ? "Location needs a secure connection (https). Open the site over https and try again."
+              : "This browser doesn't support location."
+          );
+          resolve(null);
+          return;
+        }
+
+        setIsLocating(true);
+        setLocationError(null);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setIsLocating(false);
+            const { latitude, longitude } = pos.coords;
+            resolve(`${latitude.toFixed(5)},${longitude.toFixed(5)}`);
+          },
+          (err) => {
+            setIsLocating(false);
+            const messages = {
+              1: "Location permission was denied. Allow it in your browser's site settings, or type a start address instead.",
+              2: "Your location isn't available right now. Type a start address instead.",
+              3: "Finding your location timed out. Try again, or type a start address.",
+            };
+            setLocationError(messages[err.code] ?? err.message ?? "Couldn't get your location.");
+            resolve(null);
+          },
+          // A stale fix is fine for "where am I starting from", and cheaper.
+          { enableHighAccuracy: false, timeout: 10_000, maximumAge: 120_000 }
+        );
+      }),
+    []
+  );
+
   /** Minutes remaining, so the panel can count down rather than show a static figure. */
   const minutesRemaining = isDriveActive
     ? Math.max(
@@ -113,6 +168,9 @@ export function useDriveTime() {
     drive,
     isDriveActive,
     minutesRemaining,
+    locate,
+    isLocating,
+    locationError,
     // Null unless a drive is actually underway, so an expired trip stops
     // filtering content on its own.
     driveMinutes: isDriveActive ? drive.durationMinutes : null,
