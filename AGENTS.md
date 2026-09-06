@@ -106,6 +106,41 @@ so don't remove or skip it.
 `scripts/fetch-youtube-ids.mjs` and `merge-youtube-ids.mjs` are leftovers from
 when the catalog was static. They're no longer part of the app's data path.
 
+## The lockfile registry trap — check this after any dependency change
+
+**`package-lock.json` must resolve every package from `registry.npmjs.org`.**
+
+npm records the exact URL each tarball came from. This machine's npm is pointed at
+a private corporate registry mirror, so a plain `npm install` here rewrites those
+URLs to an internal host that **does not exist on the public internet**. The
+deploy then hangs: `npm ci` waits on network timeouts for all ~690 packages,
+producing *no log output at all*, until the build times out. It looks like a
+frozen build, not a resolution failure, which is what makes it expensive to
+diagnose. It also publishes an internal hostname into this public repo.
+
+Check after adding, removing, or upgrading any dependency:
+
+```bash
+grep -oP '"resolved":\s*"https?://\K[^/]+' package-lock.json | sort -u
+# must print only: registry.npmjs.org
+```
+
+If anything else appears, rewrite the prefix in place rather than regenerating the
+lockfile — the mirror proxies npmjs, so the same version's tarball is identical
+and every `integrity` hash stays valid, meaning no dependency versions drift:
+
+```bash
+node -e 'const f="package-lock.json",fs=require("fs");
+fs.writeFileSync(f, fs.readFileSync(f,"utf8").split("<internal-prefix>").join("https://registry.npmjs.org/"))'
+```
+
+Then verify with a real install using a clean config, since this machine's npmrc
+would otherwise mask the problem:
+
+```bash
+npm ci --include=dev --registry=https://registry.npmjs.org
+```
+
 ## Thumbnails
 
 Some corporate networks block `i.ytimg.com` (and `i9.ytimg.com`) while leaving
