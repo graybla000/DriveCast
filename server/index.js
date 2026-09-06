@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleSearchRequest } from "./youtubeSearch.js";
 import { handleRouteRequest } from "./driveTime.js";
+import { handlePlacesRequest } from "./places.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,6 +28,13 @@ app.get("/api/route", async (req, res) => {
   const { status, body } = await handleRouteRequest(req.originalUrl);
   // Shorter than search: traffic moves, so don't let a stale drive time stick.
   if (status === 200) res.set("Cache-Control", "public, max-age=300");
+  res.status(status).json(body);
+});
+
+app.get("/api/places", async (req, res) => {
+  const { status, body } = await handlePlacesRequest(req.originalUrl);
+  // Place names are stable; caching keeps repeat keystrokes off the billed API.
+  if (status === 200) res.set("Cache-Control", "public, max-age=3600");
   res.status(status).json(body);
 });
 

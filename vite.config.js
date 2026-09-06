@@ -43,6 +43,7 @@ function serverDevApi(mode) {
 
       mount("/api/search", "/server/youtubeSearch.js", "handleSearchRequest");
       mount("/api/route", "/server/driveTime.js", "handleRouteRequest");
+      mount("/api/places", "/server/places.js", "handlePlacesRequest");
     },
   };
 }

@@ -49,7 +49,11 @@ const COORD_RE = /^\s*(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$/;
  * coordinates. Sending coordinates when we have them avoids a geocoding step
  * (and a second API to enable), and is more precise than any address string.
  */
-function toWaypoint(value) {
+function toWaypoint(value, placeId) {
+  // A placeId is the most precise handle available — it identifies the exact
+  // place the user picked, with no re-resolution of an ambiguous address string.
+  if (placeId) return { placeId };
+
   const m = String(value).match(COORD_RE);
   if (!m) return { address: String(value) };
 
@@ -69,7 +73,7 @@ function parseDurationSeconds(value) {
   return m ? Math.round(Number(m[1])) : 0;
 }
 
-export async function computeDriveTime(origin, destination) {
+export async function computeDriveTime(origin, destination, { originPlaceId, destinationPlaceId } = {}) {
   const from = (origin ?? "").trim();
   const to = (destination ?? "").trim();
   if (!from || !to) {
@@ -86,7 +90,7 @@ export async function computeDriveTime(origin, destination) {
     );
   }
 
-  const cacheKey = `${from.toLowerCase()}|${to.toLowerCase()}`;
+  const cacheKey = `${originPlaceId || from.toLowerCase()}|${destinationPlaceId || to.toLowerCase()}`;
   const hit = cache.get(cacheKey);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
 
@@ -101,8 +105,8 @@ export async function computeDriveTime(origin, destination) {
         "X-Goog-FieldMask": "routes.duration,routes.distanceMeters",
       },
       body: JSON.stringify({
-        origin: toWaypoint(from),
-        destination: toWaypoint(to),
+        origin: toWaypoint(from, originPlaceId),
+        destination: toWaypoint(to, destinationPlaceId),
         travelMode: "DRIVE",
         // Live traffic. TRAFFIC_AWARE needs no departureTime (it assumes now).
         routingPreference: "TRAFFIC_AWARE",
@@ -180,7 +184,10 @@ export async function computeDriveTime(origin, destination) {
 export async function handleRouteRequest(requestUrl) {
   const url = new URL(requestUrl, "http://localhost");
   try {
-    const data = await computeDriveTime(url.searchParams.get("origin"), url.searchParams.get("destination"));
+    const data = await computeDriveTime(url.searchParams.get("origin"), url.searchParams.get("destination"), {
+      originPlaceId: url.searchParams.get("originPlaceId") || undefined,
+      destinationPlaceId: url.searchParams.get("destinationPlaceId") || undefined,
+    });
     return { status: 200, body: data };
   } catch (err) {
     if (err instanceof RouteError) {

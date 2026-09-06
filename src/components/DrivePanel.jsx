@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Car, MapPin, X, AlertCircle, CreditCard, KeyRound, Navigation, Loader2, LocateFixed } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/lib/AppStore";
+import PlaceInput from "@/components/PlaceInput";
 import { mapLinks } from "@/hooks/useDriveTime";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +12,22 @@ const formatDrive = (minutes) => {
   const m = minutes % 60;
   return h > 0 ? `${h}h ${m}m` : `${m} min`;
 };
+
+const COORD_RE = /^\s*(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$/;
+
+/**
+ * Coordinates out of a "lat,lng" string, used to bias destination suggestions
+ * toward where the drive starts — so typing "Fred Meyer" surfaces the nearby one
+ * rather than whichever Google ranks highest globally.
+ */
+function coordsFrom(value) {
+  const m = String(value ?? "").match(COORD_RE);
+  if (!m) return null;
+  const lat = Number(m[1]);
+  const lng = Number(m[2]);
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
 
 /**
  * Two shapes, because they belong in different places:
@@ -121,18 +138,23 @@ function DriveSetup() {
   // Set when the origin is coordinates from the browser, so the UI can show
   // "Current location" instead of a raw lat/lng pair.
   const [originLabel, setOriginLabel] = useState(drive?.originLabel ?? null);
+  // Set only when a suggestion was picked, so routing can use the exact place
+  // rather than re-resolving the text.
+  const [originPlaceId, setOriginPlaceId] = useState(null);
+  const [destinationPlaceId, setDestinationPlaceId] = useState(null);
 
   const useMyLocation = async () => {
     const coords = await locateMe();
     if (coords) {
       setOrigin(coords);
       setOriginLabel("Current location");
+      setOriginPlaceId(null); // coordinates supersede any picked place
     }
   };
 
   const submit = (e) => {
     e.preventDefault();
-    lookupDrive(origin, destination, { originLabel });
+    lookupDrive(origin, destination, { originLabel, originPlaceId, destinationPlaceId });
   };
 
   // Each setup failure needs a different fix, so they get different icons.
@@ -201,16 +223,18 @@ function DriveSetup() {
           <p className="text-[12.5px] font-medium text-muted-foreground leading-relaxed">
             Set your route and DriveCast will only suggest content that fits the drive.
           </p>
-          <div className="flex items-center gap-2">
-            <input
-              value={originLabel ?? origin}
-              onChange={(e) => {
-                setOrigin(e.target.value);
-                setOriginLabel(null); // typing replaces the located position
-              }}
-              placeholder="Start — e.g. Kent, WA"
-              className="flex-1 min-w-0 h-11 px-3.5 rounded-xl bg-muted/50 hairline text-[14px] font-medium placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-accent/50"
-            />
+          <PlaceInput
+            value={originLabel ?? origin}
+            onChange={(next) => {
+              setOrigin(next);
+              setOriginLabel(null); // typing replaces the located position
+              setOriginPlaceId(null);
+            }}
+            onSelect={(s) => setOriginPlaceId(s.placeId)}
+            placeholder="Start — e.g. Kent, WA"
+            // "Current location" is a label for coordinates, not a place to search.
+            disableSuggestions={Boolean(originLabel)}
+          >
             <button
               type="button"
               onClick={useMyLocation}
@@ -221,12 +245,18 @@ function DriveSetup() {
             >
               {isLocating ? <Loader2 size={17} className="animate-spin" /> : <LocateFixed size={17} />}
             </button>
-          </div>
-          <input
+          </PlaceInput>
+
+          <PlaceInput
             value={destination}
-            onChange={(e) => setDestination(e.target.value)}
+            onChange={(next) => {
+              setDestination(next);
+              setDestinationPlaceId(null);
+            }}
+            onSelect={(s) => setDestinationPlaceId(s.placeId)}
             placeholder="Destination — e.g. Portland, OR"
-            className="w-full h-11 px-3.5 rounded-xl bg-muted/50 hairline text-[14px] font-medium placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-accent/50"
+            // Rank destinations near the start of the drive.
+            bias={coordsFrom(origin)}
           />
           <button
             type="submit"

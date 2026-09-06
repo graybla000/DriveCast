@@ -60,7 +60,7 @@ export function useDriveTime() {
    * "Current location" reads better than "47.38091,-122.23484".
    */
   const lookupDrive = useCallback(
-    async (origin, destination, { originLabel } = {}) => {
+    async (origin, destination, { originLabel, originPlaceId, destinationPlaceId } = {}) => {
       const from = (origin ?? "").trim();
       const to = (destination ?? "").trim();
       if (!from || !to) {
@@ -71,9 +71,12 @@ export function useDriveTime() {
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch(
-          `/api/route?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}`
-        );
+        const params = new URLSearchParams({ origin: from, destination: to });
+        // Place ids identify exactly what the user picked from the suggestions.
+        if (originPlaceId) params.set("originPlaceId", originPlaceId);
+        if (destinationPlaceId) params.set("destinationPlaceId", destinationPlaceId);
+
+        const res = await fetch(`/api/route?${params}`);
         const payload = await res.json();
 
         if (!res.ok || payload.error) {
