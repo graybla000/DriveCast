@@ -340,7 +340,9 @@ export default function TripPlanner() {
                 const canSwap = options.length > 1;
                 return (
                   <div key={`${i}-${item.id}`} className="flex items-stretch gap-2">
-                    <div className="flex flex-col items-center pt-3 shrink-0">
+                    {/* pt clears the swap controls above, so the number still lines
+                        up with the video it labels rather than with the arrows. */}
+                    <div className="flex flex-col items-center pt-12 shrink-0">
                       <span className="flex items-center justify-center w-7 h-7 rounded-full bg-accent text-accent-foreground text-[11px] font-bold">
                         {i + 1}
                       </span>
@@ -348,10 +350,11 @@ export default function TripPlanner() {
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <ItemRow item={item} />
-                      {/* Swap this slot for another video that still fits the time
-                          the other slots leave free. */}
-                      <div className="flex items-center justify-end gap-1.5 mt-1">
+                      {/* Above the video, not below: the arrows change what this
+                          slot is, so they read as a control for what follows
+                          rather than a comment on it. Swaps are limited to videos
+                          that still fit the time the other slots leave free. */}
+                      <div className="flex items-center justify-end gap-1.5 mb-1">
                         <button
                           onClick={() => swapSlot(i, -1)}
                           disabled={!canSwap}
@@ -372,6 +375,7 @@ export default function TripPlanner() {
                           <ChevronRight size={15} />
                         </button>
                       </div>
+                      <ItemRow item={item} />
                     </div>
                   </div>
                 );
