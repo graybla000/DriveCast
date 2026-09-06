@@ -8,6 +8,7 @@ import SearchBar from "@/components/SearchBar";
 import FilterPills from "@/components/FilterPills";
 import SurpriseMeCard from "@/components/SurpriseMeCard";
 import CategoryCard from "@/components/CategoryCard";
+import DrivePanel from "@/components/DrivePanel";
 import HorizontalScroller from "@/components/HorizontalScroller";
 import ItemRow from "@/components/ItemRow";
 import VideoRow from "@/components/VideoRow";
@@ -80,6 +81,8 @@ export default function Home() {
         <SearchResults query={query} committedQuery={committedQuery} search={search} />
       ) : (
         <>
+          <DrivePanel />
+
           <FilterPills
             options={CATEGORIES.map((c) => ({ id: c.id, label: c.name }))}
             active={activePill}

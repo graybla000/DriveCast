@@ -13,7 +13,7 @@ const EMPTY_FILTERS = { category: [], duration: [] };
 
 export default function Explore() {
   const [params, setParams] = useSearchParams();
-  const { toggleFavorite, startPlaying } = useAppStore();
+  const { toggleFavorite, startPlaying, fitsDrive, driveMinutes } = useAppStore();
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [index, setIndex] = useState(0);
@@ -37,8 +37,9 @@ export default function Explore() {
     { category: activeCategory, maxResults: 15 }
   );
 
-  // Duration filtering happens client-side on whatever the API returned.
-  const deck = useMemo(() => applyFilters(videos, filters), [videos, filters]);
+  // Duration filtering happens client-side on whatever the API returned, then
+  // the drive time (if set) caps it — nothing longer than the trip.
+  const deck = useMemo(() => fitsDrive(applyFilters(videos, filters)), [videos, filters, driveMinutes]);
   const current = deck[index];
   const next = deck[index + 1];
 

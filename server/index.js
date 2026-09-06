@@ -7,6 +7,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleSearchRequest } from "./youtubeSearch.js";
+import { handleRouteRequest } from "./driveTime.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +20,13 @@ app.get("/api/search", async (req, res) => {
   // Let the browser and any CDN reuse a response for a while; the server's own
   // cache is the real quota guard, this just avoids redundant round trips.
   if (status === 200) res.set("Cache-Control", "public, max-age=1800");
+  res.status(status).json(body);
+});
+
+app.get("/api/route", async (req, res) => {
+  const { status, body } = await handleRouteRequest(req.originalUrl);
+  // Shorter than search: traffic moves, so don't let a stale drive time stick.
+  if (status === 200) res.set("Cache-Control", "public, max-age=300");
   res.status(status).json(body);
 });
 

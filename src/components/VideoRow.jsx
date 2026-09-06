@@ -9,11 +9,15 @@ import { useAppStore } from "@/lib/AppStore";
 // Owns its own fetch so each row loads independently — one row hitting the quota
 // ceiling doesn't blank the whole screen.
 export default function VideoRow({ query, category = null, maxResults = 10 }) {
-  const { startPlaying } = useAppStore();
-  const { videos, isLoading, error, isMissingKey, isQuotaError } = useYouTubeSearch(query, {
+  const { startPlaying, fitsDrive, driveMinutes } = useAppStore();
+  const { videos: allVideos, isLoading, error, isMissingKey, isQuotaError } = useYouTubeSearch(query, {
     category,
     maxResults,
   });
+
+  // A drive time acts as a ceiling: nothing longer than the trip is shown.
+  const videos = fitsDrive(allVideos);
+  const hiddenByDrive = allVideos.length - videos.length;
 
   if (isLoading) {
     return (
@@ -40,7 +44,15 @@ export default function VideoRow({ query, category = null, maxResults = 10 }) {
   }
 
   if (!videos.length) {
-    return <p className="text-[13px] text-muted-foreground font-medium">No results for this topic right now.</p>;
+    // Distinguish "nothing found" from "everything was too long for the drive",
+    // which is an actionable difference.
+    return (
+      <p className="text-[13px] text-muted-foreground font-medium">
+        {hiddenByDrive > 0
+          ? `Nothing here fits a ${driveMinutes}-minute drive — ${hiddenByDrive} result${hiddenByDrive === 1 ? "" : "s"} were longer.`
+          : "No results for this topic right now."}
+      </p>
+    );
   }
 
   return (
