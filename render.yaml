@@ -1,0 +1,21 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# A Node web service rather than a static site, because search runs server-side
+# so the YouTube API key never reaches the browser.
+services:
+  - type: web
+    name: drivecast
+    runtime: node
+    plan: free
+    # Free instances spin down when idle; the first request after that takes
+    # roughly a minute to wake. Upgrade the plan if that matters.
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: YOUTUBE_API_KEY
+        # sync: false keeps the value out of this file — set it in the Render
+        # dashboard (Environment tab). Never commit the key.
+        sync: false
+      - key: NODE_VERSION
+        value: "22"

@@ -209,6 +209,5 @@ parse, per-directory counts match the tree above.
 
 ### Local build note
 
-`npm install` will fail on this machine until the Artifactory npm token is
-refreshed (`npm login --registry=https://artifactory.blueorigin.com/api/npm/et-npm/`);
-npm is pointed at Artifactory rather than public npmjs.
+On a machine whose npm points at a private registry mirror rather than public
+npmjs, `npm install` fails until that registry's auth token is refreshed.

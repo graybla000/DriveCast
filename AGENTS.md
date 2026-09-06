@@ -2,23 +2,27 @@
 
 ## Project Context
 
-DriveCast is a local-first React + Vite single-page app. It started life as a
-base44 project; base44 was removed entirely on 2026-09-06 (SDK, Vite plugin,
-hosted auth, `base44/` config). There is **no backend** — treat this as a
-frontend app that owns all of its own state.
+DriveCast is a React + Vite single-page app with a thin Node server. It started
+life as a base44 project; base44 was removed entirely on 2026-09-06 (SDK, Vite
+plugin, hosted auth, `base44/` config).
 
-Development happens locally with Claude Code. This project is deliberately
-**local only**: no GitLab remote, no hosted deployment. Version control is a
-local git repo with no remote — don't add one.
+The server exists for exactly one reason: to hold the YouTube API key so it never
+reaches the browser. Everything else is frontend, and all user state is
+per-browser (`localStorage`) — there is no database and no auth.
 
-It is an early template, well short of its intended feature set, so prefer
+Published at `github.com/graybla000/DriveCast` (**public**) and hosted on Render.
+Because the repo is public, don't commit secrets and don't add employer-internal
+detail (internal hostnames, registry URLs, network specifics) to tracked files.
+
+It is an early project, well short of its intended feature set, so prefer
 building the thing asked for over preserving existing scaffolding.
 
 ## Commands
 
 ```bash
-npm run dev      # Vite dev server, http://localhost:5173
-npm run build    # production build to dist/
+npm run dev      # Vite dev server + /api/search middleware, localhost:5173
+npm run build    # production build to dist/ (then checks for leaked secrets)
+npm start        # production server (serves dist/ + /api/search), localhost:3000
 npm run lint     # eslint
 ```
 
@@ -30,7 +34,12 @@ process rather than using the new port.
 
 - `src/pages/` — the five routes: Home, Explore, TripPlanner, Favorites, Profile.
   All are public; there is no auth.
-- `src/lib/youtube.js` — **the content source**. YouTube Data API v3 client.
+- `server/youtubeSearch.js` — **the content source**. Talks to the YouTube Data
+  API and holds the key. Shared by the production Express server
+  (`server/index.js`) and the Vite dev middleware in `vite.config.js`, so dev and
+  prod run identical code.
+- `src/lib/youtube.js` — thin client for this app's own `/api/search`. Contains
+  no key and must never call googleapis.com directly.
 - `src/lib/contentData.js` — the *curated* layer: categories as saved queries.
   There is no item catalog; nothing here lists videos.
 - `src/hooks/useYouTubeSearch.js` — React Query wrappers (`useYouTubeSearch` for
@@ -64,9 +73,16 @@ changes so playback survives navigation.
 
 ### Search and quota — read before touching the data layer
 
-Content is fetched live from the YouTube Data API with a key in
-`.env.local` (`VITE_YOUTUBE_API_KEY`). **Quota is the binding constraint**: 10,000
-units/day, a search costs 100, so ~100 searches/day. Consequences to respect:
+Content is fetched live from the YouTube Data API. The key is `YOUTUBE_API_KEY`
+in `.env.local` locally, and a Render environment variable in production.
+
+**Never rename it to `VITE_YOUTUBE_API_KEY` and never read it from client code.**
+Vite inlines every `VITE_`-prefixed variable into the public bundle; the whole
+point of the server endpoint is that the key isn't shipped to visitors. There's a
+build-time check for this — see "Verifying the key stays server-side" below.
+
+**Quota is the binding constraint**: 10,000 units/day, a search costs 100, so
+~100 searches/day. Consequences to respect:
 
 - Every search result is cached in `localStorage` for 12h by `src/lib/youtube.js`.
   Don't bypass that cache.
@@ -79,15 +95,24 @@ units/day, a search costs 100, so ~100 searches/day. Consequences to respect:
   real durations and drop videos that can't be embedded — they fail silently in
   the player otherwise.
 
+### Verifying the key stays server-side
+
+`npm run build` runs `scripts/check-no-secrets.mjs` afterwards, which fails the
+build if `dist/` contains a Google API key pattern, a `VITE_YOUTUBE_API_KEY`
+reference, or a direct `googleapis.com/youtube` call. The leak it guards against
+is silent — the app would work fine while publishing the key to every visitor —
+so don't remove or skip it.
+
 `scripts/fetch-youtube-ids.mjs` and `merge-youtube-ids.mjs` are leftovers from
 when the catalog was static. They're no longer part of the app's data path.
 
-## Network constraints on this machine
+## Thumbnails
 
-- `i.ytimg.com` and `i9.ytimg.com` are **blocked**; `img.youtube.com` works.
-  Use `https://img.youtube.com/vi/<id>/hqdefault.jpg` for thumbnails.
-- npm points at Blue Origin Artifactory with a token that expires roughly
-  monthly.
+Some corporate networks block `i.ytimg.com` (and `i9.ytimg.com`) while leaving
+`img.youtube.com` reachable, so thumbnail URLs are always built as
+`https://img.youtube.com/vi/<id>/hqdefault.jpg` rather than taken from the API
+response. Every `<img>` also has an `onError` that hides it, leaving the card's
+gradient as the fallback.
 
 ## Conventions
 
