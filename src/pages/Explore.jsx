@@ -1,14 +1,15 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { SlidersHorizontal, X, RotateCw, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { SlidersHorizontal, X, RotateCw, Sparkles, ChevronLeft, ChevronRight, KeyRound, AlertCircle } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
-import { ITEMS, applyFilters, CATEGORIES, surpriseMe } from "@/lib/contentData";
+import { applyFilters, CATEGORIES, FEATURED_CATEGORY_IDS, queryForCategory, surpriseFrom } from "@/lib/contentData";
+import { useYouTubeSearch } from "@/hooks/useYouTubeSearch";
 import RecommendationCard from "@/components/RecommendationCard";
 import FiltersSheet from "@/components/FiltersSheet";
 import SurpriseResultSheet from "@/components/SurpriseResultSheet";
 import { cn } from "@/lib/utils";
 
-const EMPTY_FILTERS = { category: [], duration: [], distance: [], toggles: {} };
+const EMPTY_FILTERS = { category: [], duration: [] };
 
 export default function Explore() {
   const [params, setParams] = useSearchParams();
@@ -22,23 +23,31 @@ export default function Explore() {
   // Honor a ?category= deep link from Home category cards.
   useEffect(() => {
     const cat = params.get("category");
-    if (cat) setFilters((f) => ({ ...f, category: [cat] }));
+    if (cat) {
+      setFilters((f) => ({ ...f, category: [cat] }));
+      setIndex(0);
+    }
   }, [params]);
 
-  const deck = useMemo(() => applyFilters(ITEMS, filters), [filters]);
+  // One category at a time drives the search — a deck can only show one query's
+  // results, and each extra query would cost another 100 quota units.
+  const activeCategory = filters.category?.[0] ?? FEATURED_CATEGORY_IDS[0];
+  const { videos, isLoading, error, isMissingKey, isQuotaError } = useYouTubeSearch(
+    queryForCategory(activeCategory),
+    { category: activeCategory, maxResults: 15 }
+  );
+
+  // Duration filtering happens client-side on whatever the API returned.
+  const deck = useMemo(() => applyFilters(videos, filters), [videos, filters]);
   const current = deck[index];
   const next = deck[index + 1];
 
-  const activeFilterCount =
-    (filters.category?.length || 0) +
-    (filters.duration?.length || 0) +
-    (filters.distance?.length || 0) +
-    Object.values(filters.toggles || {}).filter(Boolean).length;
+  const activeFilterCount = (filters.category?.length || 0) + (filters.duration?.length || 0);
 
   const advance = () => setIndex((i) => i + 1);
 
   const handleSwipe = (dir) => {
-    if (dir === "like" && current) toggleFavorite(current.id);
+    if (dir === "like" && current) toggleFavorite(current);
     advance();
   };
 
@@ -81,7 +90,7 @@ export default function Explore() {
   };
 
   const openSurprise = () => {
-    setSurpriseItem(surpriseMe(true));
+    setSurpriseItem(surpriseFrom(videos));
     setSurpriseOpen(true);
   };
 
@@ -110,14 +119,32 @@ export default function Explore() {
           {filters.category.map((id) => (
             <FilterChip key={id} label={CATEGORIES.find((c) => c.id === id)?.name} onRemove={() => setFilters((f) => ({ ...f, category: f.category.filter((x) => x !== id) }))} />
           ))}
-          {Object.entries(filters.toggles || {}).filter(([, v]) => v).map(([k]) => (
-            <FilterChip key={k} label={k.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())} onRemove={() => setFilters((f) => ({ ...f, toggles: { ...f.toggles, [k]: false } }))} />
+          {filters.duration?.map((id) => (
+            <FilterChip key={id} label={id} onRemove={() => setFilters((f) => ({ ...f, duration: f.duration.filter((x) => x !== id) }))} />
           ))}
         </div>
       )}
 
       <div className="relative" style={{ height: 560 }}>
-        {current ? (
+        {isLoading ? (
+          <div className="absolute inset-0 rounded-[28px] glass hairline animate-pulse" />
+        ) : error ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center glass hairline rounded-[28px] p-8">
+            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-accent/15 mb-4">
+              {isMissingKey ? (
+                <KeyRound size={30} className="text-accent" />
+              ) : (
+                <AlertCircle size={30} className={isQuotaError ? "text-gold" : "text-destructive"} />
+              )}
+            </div>
+            <h3 className="text-display text-[22px] font-extrabold tracking-tight">
+              {isMissingKey ? "Search isn't configured" : isQuotaError ? "Daily quota reached" : "Couldn't load results"}
+            </h3>
+            <p className="text-muted-foreground text-[14px] font-medium mt-1.5 max-w-xs leading-relaxed">
+              {error.message}
+            </p>
+          </div>
+        ) : current ? (
           <>
             {next && <RecommendationCard key={next.id + "-bg"} item={next} active={false} onSwipe={() => {}} onSave={() => {}} onShare={() => {}} onStart={() => {}} />}
             <RecommendationCard
@@ -125,7 +152,7 @@ export default function Explore() {
               item={current}
               active={true}
               onSwipe={handleSwipe}
-              onSave={() => toggleFavorite(current.id)}
+              onSave={() => toggleFavorite(current)}
               onShare={() => {}}
               onStart={() => startPlaying(current)}
             />
@@ -199,7 +226,7 @@ export default function Explore() {
 
       <FiltersSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} filters={filters} onApply={(f) => { setFilters(f); setIndex(0); }} />
 
-      <SurpriseResultSheet open={surpriseOpen} item={surpriseItem} onClose={() => setSurpriseOpen(false)} onReroll={() => setSurpriseItem(surpriseMe(true))} onShare={() => {}} />
+      <SurpriseResultSheet open={surpriseOpen} item={surpriseItem} onClose={() => setSurpriseOpen(false)} onReroll={() => setSurpriseItem(surpriseFrom(videos))} onShare={() => {}} />
     </div>
   );
 }

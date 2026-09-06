@@ -1,16 +1,17 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, Clock, ArrowRight } from "lucide-react";
+import { Clock, ArrowRight, AlertCircle, KeyRound } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
-import { CATEGORIES, TRENDING, searchItems, itemsByCategory } from "@/lib/contentData";
+import { CATEGORIES, FEATURED_CATEGORY_IDS, getCategory, queryForCategory, surpriseFrom } from "@/lib/contentData";
+import { useYouTubeSearch } from "@/hooks/useYouTubeSearch";
 import SearchBar from "@/components/SearchBar";
 import FilterPills from "@/components/FilterPills";
 import SurpriseMeCard from "@/components/SurpriseMeCard";
 import CategoryCard from "@/components/CategoryCard";
 import HorizontalScroller from "@/components/HorizontalScroller";
 import ItemRow from "@/components/ItemRow";
+import VideoRow from "@/components/VideoRow";
 import SurpriseResultSheet from "@/components/SurpriseResultSheet";
-import { surpriseMe } from "@/lib/contentData";
 
 function greeting() {
   const h = new Date().getHours();
@@ -19,28 +20,50 @@ function greeting() {
   return "Good evening";
 }
 
+// Typing shouldn't fire a request per keystroke — each search costs 100 quota
+// units, so the query is only committed once typing pauses.
+const SEARCH_DEBOUNCE_MS = 600;
+
 export default function Home() {
   const navigate = useNavigate();
   const { recentSearches, addRecentSearch, startPlaying } = useAppStore();
   const [query, setQuery] = useState("");
+  const [committedQuery, setCommittedQuery] = useState("");
   const [activePill, setActivePill] = useState(null);
   const [surpriseOpen, setSurpriseOpen] = useState(false);
   const [surpriseItem, setSurpriseItem] = useState(null);
 
-  const results = query ? searchItems(query) : [];
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setCommittedQuery("");
+      return;
+    }
+    const timer = setTimeout(() => setCommittedQuery(trimmed), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const search = useYouTubeSearch(committedQuery);
+
+  // The Wild Card pulls from the first featured row, so it needs no extra quota.
+  const wildcardPool = useYouTubeSearch(queryForCategory(FEATURED_CATEGORY_IDS[0]), {
+    category: FEATURED_CATEGORY_IDS[0],
+    maxResults: 10,
+  });
 
   const openSurprise = () => {
-    setSurpriseItem(surpriseMe(true));
+    setSurpriseItem(surpriseFrom(wildcardPool.videos));
     setSurpriseOpen(true);
   };
-  const reroll = () => setSurpriseItem(surpriseMe(true));
+  const reroll = () => setSurpriseItem(surpriseFrom(wildcardPool.videos));
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (query.trim()) addRecentSearch(query);
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    setCommittedQuery(trimmed);
+    addRecentSearch(trimmed);
   };
-
-  const trendingItems = TRENDING.map((name) => itemsByCategory(CATEGORIES.find((c) => c.name === name)?.id)[0]).filter(Boolean);
 
   return (
     <div className="space-y-6">
@@ -53,20 +76,8 @@ export default function Home() {
         <SearchBar value={query} onChange={setQuery} />
       </form>
 
-      {query ? (
-        <section>
-          <p className="text-[13px] font-semibold text-muted-foreground mb-3">
-            {results.length} result{results.length !== 1 ? "s" : ""} for “{query}”
-          </p>
-          <div className="space-y-2.5">
-            {results.map((item) => (
-              <ItemRow key={item.id} item={item} />
-            ))}
-            {results.length === 0 && (
-              <p className="text-muted-foreground text-[14px] text-center py-10">No matches — try another search.</p>
-            )}
-          </div>
-        </section>
+      {query.trim() ? (
+        <SearchResults query={query} committedQuery={committedQuery} search={search} />
       ) : (
         <>
           <FilterPills
@@ -83,33 +94,25 @@ export default function Home() {
           <Section title="Browse categories" actionLabel="All" onAction={() => navigate("/explore")}>
             <HorizontalScroller>
               {CATEGORIES.map((c) => (
-                <CategoryCard
-                  key={c.id}
-                  category={c}
-                  onClick={() => navigate(`/explore?category=${c.id}`)}
-                />
+                <CategoryCard key={c.id} category={c} onClick={() => navigate(`/explore?category=${c.id}`)} />
               ))}
             </HorizontalScroller>
           </Section>
 
-          <Section title="Trending now" icon={<TrendingUp size={16} className="text-gold" />}>
-            <HorizontalScroller>
-              {trendingItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => startPlaying(item)}
-                  className="shrink-0 w-40 active:scale-[0.97] transition-transform text-left"
-                >
-                  <div className={`relative h-24 rounded-2xl overflow-hidden bg-gradient-to-br ${item.gradient}`}>
-                    <div className="absolute inset-0 opacity-30 mix-blend-overlay" style={{ backgroundImage: "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.5), transparent 60%)" }} />
-                    <div className="absolute bottom-2 left-2.5 text-white text-[11px] font-bold uppercase tracking-wider">{item.type}</div>
-                  </div>
-                  <p className="text-[13px] font-semibold leading-tight mt-2 line-clamp-2">{item.title}</p>
-                  <p className="text-[11px] text-muted-foreground font-semibold mt-0.5">{item.duration} min · ★ {item.rating.toFixed(1)}</p>
-                </button>
-              ))}
-            </HorizontalScroller>
-          </Section>
+          {FEATURED_CATEGORY_IDS.map((id) => {
+            const category = getCategory(id);
+            if (!category) return null;
+            return (
+              <Section
+                key={id}
+                title={category.name}
+                actionLabel="See all"
+                onAction={() => navigate(`/explore?category=${id}`)}
+              >
+                <VideoRow query={category.query} category={id} />
+              </Section>
+            );
+          })}
 
           <Section title="Recent searches" icon={<Clock size={16} className="text-muted-foreground" />}>
             <div className="space-y-1.5">
@@ -141,6 +144,52 @@ export default function Home() {
         onShare={() => {}}
       />
     </div>
+  );
+}
+
+function SearchResults({ query, committedQuery, search }) {
+  const { videos, isLoading, error, isMissingKey, isQuotaError } = search;
+  const pendingDebounce = query.trim() !== committedQuery;
+
+  if (error) {
+    const Icon = isMissingKey ? KeyRound : AlertCircle;
+    return (
+      <div className="flex items-start gap-3 p-4 rounded-2xl glass hairline">
+        <Icon size={18} className={isQuotaError ? "text-gold mt-0.5 shrink-0" : "text-destructive mt-0.5 shrink-0"} />
+        <div>
+          <p className="text-[14px] font-semibold">
+            {isMissingKey ? "YouTube search isn't configured" : isQuotaError ? "Daily quota reached" : "Search failed"}
+          </p>
+          <p className="text-[12.5px] text-muted-foreground font-medium leading-relaxed mt-0.5">{error.message}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (pendingDebounce || isLoading) {
+    return (
+      <div className="space-y-2.5">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-[76px] rounded-2xl bg-muted animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <section>
+      <p className="text-[13px] font-semibold text-muted-foreground mb-3">
+        {videos.length} result{videos.length !== 1 ? "s" : ""} for “{committedQuery}”
+      </p>
+      <div className="space-y-2.5">
+        {videos.map((video) => (
+          <ItemRow key={video.id} item={video} />
+        ))}
+        {videos.length === 0 && (
+          <p className="text-muted-foreground text-[14px] text-center py-10">No matches — try another search.</p>
+        )}
+      </div>
+    </section>
   );
 }
 

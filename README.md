@@ -7,12 +7,16 @@ React app for finding something worth listening to on a drive.
 
 ```bash
 npm install
+cp .env.local.example .env.local   # then paste in a YouTube API key
 npm run dev
 ```
 
 Then open **http://localhost:5173**.
 
-That's the whole setup. There's no backend, no API keys, and no account needed.
+Without a key the app still runs — every content row just explains that search
+isn't configured. See `.env.local.example` for how to get one (Google Cloud →
+enable "YouTube Data API v3" → create an API key). Vite reads `.env.local` only
+at startup, so restart the dev server after adding it.
 
 ## Scripts
 
@@ -25,32 +29,41 @@ That's the whole setup. There's no backend, no API keys, and no account needed.
 
 ## How it works
 
+DriveCast is a **thin client over YouTube**. It owns no content catalog: you
+search, results come live from the YouTube Data API, they play in an embedded
+player, and the only thing the app stores is what you choose to keep.
+
 A single-page React app (React Router) with five screens: **Home**, **Explore**,
 **Plan**, **Saved**, and **Profile**.
 
-- **Content** is static, in `src/lib/contentData.js`.
+- **Content** is fetched live — `src/lib/youtube.js` (API client) and
+  `src/hooks/useYouTubeSearch.js` (React Query wrapper).
+- **Curation** is `src/lib/contentData.js`: categories are *saved queries*, not
+  lists of videos. Editing a category's `query` changes what that topic returns.
 - **State** is one shared store, `src/lib/AppStore.jsx`, composed from hooks in
   `src/hooks/`.
 - **Persistence** is `localStorage` — favorites, saved trips, now-playing
   position, and recent searches survive a reload. Nothing leaves your machine.
-- **Playback** streams from YouTube via the IFrame Player API; every item in
-  `contentData.js` has a `youtubeId`. The mini-player sits under the header and
-  keeps playing as you move between screens.
+  Saved items store a full snapshot of the video, so they keep working even if it
+  later drops out of search results.
+- **Playback** uses the YouTube IFrame Player API. The mini-player sits under the
+  header and keeps playing as you move between screens.
 
-### Adding or refreshing content
+### Changing what a category returns
 
-Video ids are fetched and verified rather than hand-written, because a video
-that's been deleted or has embedding disabled fails silently in the player:
-
-```bash
-node scripts/fetch-youtube-ids.mjs    # find + verify embeddable videos
-node scripts/merge-youtube-ids.mjs    # merge ids into contentData.js
-```
-
-Add an entry to the `QUERIES` map in `scripts/fetch-youtube-ids.mjs` first.
+Edit its `query` in `src/lib/contentData.js`. `FEATURED_CATEGORY_IDS` controls
+which categories get their own row on Home — keep that list short, since each
+row is a search.
 
 ## Known limits
 
+- **Search quota.** The YouTube Data API allows 10,000 units/day and a search
+  costs 100, so roughly **100 searches/day**. Results are cached in
+  `localStorage` for 12h and searches are debounced to stay inside that; when the
+  quota does run out the app says so plainly and cached results keep working.
+- **The API key ships in the bundle.** Unavoidable when calling the API straight
+  from the browser. Restrict the key to the YouTube Data API and to an HTTP
+  referrer. Moving search behind a small server is the fix if that ever matters.
 - **No background audio.** YouTube embeds pause when a mobile browser is
   backgrounded or the screen locks, and YouTube's terms require the player stay
   visible. Listening with the phone put away would need real audio files.

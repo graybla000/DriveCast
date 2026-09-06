@@ -30,8 +30,11 @@ process rather than using the new port.
 
 - `src/pages/` — the five routes: Home, Explore, TripPlanner, Favorites, Profile.
   All are public; there is no auth.
-- `src/lib/contentData.js` — **all app content**. Static `ITEMS` array plus the
-  category/filter definitions. This is the data layer; there is no API.
+- `src/lib/youtube.js` — **the content source**. YouTube Data API v3 client.
+- `src/lib/contentData.js` — the *curated* layer: categories as saved queries.
+  There is no item catalog; nothing here lists videos.
+- `src/hooks/useYouTubeSearch.js` — React Query wrappers (`useYouTubeSearch` for
+  one query, `useYouTubeSearches` for several).
 - `src/lib/AppStore.jsx` — single shared store (context) composed from the
   hooks in `src/hooks/`. Every screen reads state from here.
 - `src/hooks/useYouTubePlayer.js` — the YouTube IFrame player wrapper.
@@ -59,18 +62,25 @@ Two constraints worth knowing before changing this:
 The bar lives in `AppLayout` above `<main>`, which keeps it mounted across route
 changes so playback survives navigation.
 
-### Adding content
+### Search and quota — read before touching the data layer
 
-Don't hand-write video ids — a deleted, private, or embedding-disabled video
-fails *silently* in the player. Use the scripts:
+Content is fetched live from the YouTube Data API with a key in
+`.env.local` (`VITE_YOUTUBE_API_KEY`). **Quota is the binding constraint**: 10,000
+units/day, a search costs 100, so ~100 searches/day. Consequences to respect:
 
-```bash
-node scripts/fetch-youtube-ids.mjs           # search + verify via oEmbed
-node scripts/fetch-youtube-ids.mjs --resume  # retry only what failed
-node scripts/merge-youtube-ids.mjs           # write ids into contentData.js
-```
+- Every search result is cached in `localStorage` for 12h by `src/lib/youtube.js`.
+  Don't bypass that cache.
+- Retries are disabled on search queries. Retrying a failure just burns quota.
+- Typing is debounced before a query is committed — never search per keystroke.
+- Each Home row is one search. Adding entries to `FEATURED_CATEGORY_IDS` costs
+  quota on every cold load.
+- `search.list` gives neither duration nor a reliable embeddable flag, so the
+  client follows up with one `videos.list` call (1 unit for up to 50 ids) to get
+  real durations and drop videos that can't be embedded — they fail silently in
+  the player otherwise.
 
-Add a query to the `QUERIES` map in `fetch-youtube-ids.mjs` for each new item.
+`scripts/fetch-youtube-ids.mjs` and `merge-youtube-ids.mjs` are leftovers from
+when the catalog was static. They're no longer part of the app's data path.
 
 ## Network constraints on this machine
 

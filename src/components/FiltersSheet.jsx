@@ -91,20 +91,8 @@ export default function FiltersSheet({ open, onClose, filters, onApply }) {
                   ))}
                 </div>
               </Section>
-              <Section title="Distance">
-                <div className="flex flex-wrap gap-2">
-                  {FILTER_OPTIONS.distance.map((c) => (
-                    <Chip key={c.id} active={draft.distance?.includes(c.id)} onClick={() => toggleArray("distance", c.id)}>{c.label}</Chip>
-                  ))}
-                </div>
-              </Section>
-              <Section title="More">
-                <div className="flex flex-wrap gap-2">
-                  {FILTER_OPTIONS.toggles.map((c) => (
-                    <Chip key={c.id} active={!!draft.toggles?.[c.id]} onClick={() => toggleBool(c.id)}>{c.label}</Chip>
-                  ))}
-                </div>
-              </Section>
+              {/* Distance and the kid-friendly/free/indoor toggles are gone:
+                  YouTube returns none of that, so filtering on it was fiction. */}
             </div>
 
             <div className="px-5 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] border-t hairline">

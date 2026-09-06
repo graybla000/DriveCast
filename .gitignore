@@ -1,6 +1,8 @@
 #env
 .env
 .env.*
+# ...but the template carries no secrets and should be committed.
+!.env.local.example
 
 # Logs
 /logs

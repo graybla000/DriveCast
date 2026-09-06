@@ -1,9 +1,14 @@
 import React, { useState } from "react";
 import { MapPin, Clock, Sparkles, Save, Trash2, Route as RouteIcon, Check } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
-import { CATEGORIES, ITEMS, itemsByCategory, getItemById } from "@/lib/contentData";
+import { CATEGORIES, FEATURED_CATEGORY_IDS, queryForCategory } from "@/lib/contentData";
+import { useYouTubeSearches } from "@/hooks/useYouTubeSearch";
 import ItemRow from "@/components/ItemRow";
 import { cn } from "@/lib/utils";
+
+// Each distinct category costs another search (100 quota units on a cache miss),
+// so the number of interests that actually drive a fetch is capped.
+const MAX_INTEREST_FETCHES = 3;
 
 const DURATIONS = [
   { id: "1-2", label: "1–2 hours", maxMin: 120 },
@@ -23,15 +28,16 @@ export default function TripPlanner() {
   const toggleInterest = (id) =>
     setInterests((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
+  // Live pool for the chosen interests, falling back to the featured topics.
+  const fetchIds = (interests.length ? interests : FEATURED_CATEGORY_IDS).slice(0, MAX_INTEREST_FETCHES);
+  const pool = useYouTubeSearches(fetchIds.map((id) => ({ query: queryForCategory(id), category: id })));
+
   const curate = () => {
-    const pool = interests.length
-      ? interests.flatMap((c) => itemsByCategory(c))
-      : ITEMS;
     const maxMin = DURATIONS.find((d) => d.id === duration).maxMin;
     // Build a route: greedily fill the trip duration with a mix.
     let remaining = maxMin;
     const route = [];
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const shuffled = [...pool.videos].sort(() => Math.random() - 0.5);
     for (const item of shuffled) {
       if (item.duration <= remaining) {
         route.push(item);
@@ -39,7 +45,7 @@ export default function TripPlanner() {
       }
       if (remaining <= 0) break;
     }
-    setSuggestions(route.length ? route : pool.slice(0, 4));
+    setSuggestions(route.length ? route : pool.videos.slice(0, 4));
   };
 
   const saveCurrent = () => {
@@ -48,7 +54,8 @@ export default function TripPlanner() {
       destination: destination || "Untitled trip",
       duration,
       interests,
-      stops: suggestions.map((s) => s.id),
+      // Full snapshots, not ids: there is no catalog to resolve ids against.
+      stops: suggestions,
     });
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1800);
@@ -166,7 +173,7 @@ export default function TripPlanner() {
           <h2 className="text-display text-[20px] font-bold tracking-tight mb-3">Saved trips</h2>
           <div className="space-y-2.5">
             {trips.map((trip) => {
-              const stops = trip.stops.map(getItemById).filter(Boolean);
+              const stops = trip.stops ?? [];
               return (
                 <div key={trip.id} className="glass hairline rounded-2xl p-4">
                   <div className="flex items-start justify-between">

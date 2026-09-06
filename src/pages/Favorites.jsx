@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Heart, Map, Trash2 } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
-import { getItemById, CATEGORIES } from "@/lib/contentData";
+import { CATEGORIES } from "@/lib/contentData";
 import ItemRow from "@/components/ItemRow";
 import { cn } from "@/lib/utils";
 
@@ -9,7 +9,9 @@ export default function Favorites() {
   const { favorites, clearFavorites, trips, deleteTrip } = useAppStore();
   const [tab, setTab] = useState("items");
 
-  const favItems = favorites.map(getItemById).filter(Boolean);
+  // Favorites are stored as full snapshots, so they render directly — there is
+  // no catalog left to look an id up in.
+  const favItems = favorites;
 
   return (
     <div className="space-y-5">

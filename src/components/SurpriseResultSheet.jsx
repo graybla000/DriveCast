@@ -1,6 +1,6 @@
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sparkles, Play, Heart, Share2, Clock, MapPin, Star, RotateCw } from "lucide-react";
+import { Sparkles, Play, Heart, Share2, Clock, RotateCw } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
 import { TypeIcon } from "./CategoryIcon";
 import { cn } from "@/lib/utils";
@@ -45,21 +45,29 @@ export default function SurpriseResultSheet({ open, item, onClose, onReroll, onS
                 </div>
 
                 <div className={cn("relative h-48 rounded-3xl overflow-hidden bg-gradient-to-br mb-4", item.gradient)}>
+                  {item.thumbnail && (
+                    <img
+                      src={item.thumbnail}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  )}
                   <div className="absolute inset-0 opacity-40 mix-blend-overlay" style={{ backgroundImage: "radial-gradient(circle at 25% 15%, rgba(255,255,255,0.5), transparent 60%)" }} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                   <div className="absolute top-3 left-3 flex items-center justify-center w-11 h-11 rounded-2xl bg-white/15 backdrop-blur-md text-white">
                     <TypeIcon type={item.type} size={22} />
                   </div>
-                  <div className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/30 backdrop-blur-md text-white text-[12px] font-bold">
-                    <Star size={13} className="text-gold fill-gold" /> {item.rating.toFixed(1)}
-                  </div>
                 </div>
 
                 <h2 className="text-display text-[26px] font-extrabold tracking-tight leading-tight">{item.title}</h2>
                 <div className="flex items-center gap-3 mt-2 text-[13px] font-semibold text-muted-foreground">
-                  <span className="flex items-center gap-1"><Clock size={14} /> {item.duration} min</span>
-                  {item.distance != null && <span className="flex items-center gap-1"><MapPin size={14} /> {item.distance} mi away</span>}
-                  <span className="capitalize">{item.setting}</span>
+                  {item.duration > 0 && (
+                    <span className="flex items-center gap-1"><Clock size={14} /> {item.duration} min</span>
+                  )}
+                  {item.host && <span className="truncate">{item.host}</span>}
                 </div>
                 <p className="text-muted-foreground text-[15px] font-medium leading-relaxed mt-3">{item.description}</p>
                 {item.location && <p className="text-accent text-[13px] font-semibold mt-2">{item.location}</p>}
@@ -72,7 +80,7 @@ export default function SurpriseResultSheet({ open, item, onClose, onReroll, onS
                     <Play size={20} fill="currentColor" className="ml-0.5" /> Start listening
                   </button>
                   <button
-                    onClick={() => toggleFavorite(item.id)}
+                    onClick={() => toggleFavorite(item)}
                     aria-label={saved ? "Remove from favorites" : "Save"}
                     className={cn("w-14 h-14 rounded-2xl flex items-center justify-center active:scale-90 transition-transform hairline", saved ? "bg-rose-500/20 text-rose-400" : "glass text-muted-foreground")}
                   >

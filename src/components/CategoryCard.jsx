@@ -16,7 +16,9 @@ export default function CategoryCard({ category, onClick }) {
       </div>
       <div className="absolute bottom-3 left-3 right-3">
         <p className="text-white text-[16px] font-bold leading-tight tracking-tight">{category.name}</p>
-        <p className="text-white/70 text-[11px] font-semibold mt-0.5">{category.count} episodes</p>
+        {/* No item count to show — results are fetched live, so there is no
+            fixed number of episodes behind a category. */}
+        <p className="text-white/70 text-[11px] font-semibold mt-0.5">Browse topic</p>
       </div>
     </button>
   );
