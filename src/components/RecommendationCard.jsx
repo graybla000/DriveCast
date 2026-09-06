@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 const TYPE_LABEL = {
   podcast: "Podcast episode",
+  lesson: "Video lesson",
   attraction: "Roadside attraction",
   trail: "Hiking trail",
   museum: "Museum",

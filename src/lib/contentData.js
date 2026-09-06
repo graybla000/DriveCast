@@ -2,7 +2,13 @@
 // Scalable: swap this static module for an API/AI recommendation service later
 // without touching UI components — they only consume these shapes.
 
+// Order here drives display order everywhere: the Home category row, the quick
+// filter pills, and the Explore filter sheet all map over this array. The
+// technical categories lead deliberately.
 export const CATEGORIES = [
+  { id: "manufacturing", name: "Manufacturing", icon: "Factory", gradient: "from-orange-500/80 to-amber-700/80", count: 29 },
+  { id: "cnc", name: "CNC Machining", icon: "Drill", gradient: "from-sky-500/80 to-indigo-700/80", count: 26 },
+  { id: "engineering", name: "Engineering", icon: "Cog", gradient: "from-slate-400/80 to-slate-700/80", count: 34 },
   { id: "history", name: "History", icon: "Landmark", gradient: "from-amber-500/80 to-orange-700/80", count: 42 },
   { id: "science", name: "Science", icon: "Atom", gradient: "from-cyan-500/80 to-blue-700/80", count: 38 },
   { id: "space", name: "Space", icon: "Rocket", gradient: "from-indigo-500/80 to-purple-800/80", count: 27 },
@@ -12,17 +18,18 @@ export const CATEGORIES = [
   { id: "gems", name: "Hidden Gems", icon: "Gem", gradient: "from-fuchsia-500/80 to-pink-700/80", count: 19 },
 ];
 
-export const TRENDING = ["Space", "Roadside Attractions", "Hidden Gems", "History"];
+export const TRENDING = ["CNC Machining", "Engineering", "Space", "Manufacturing"];
 
 export const RECENT_SEARCHES_DEFAULT = [
-  "Civil War battlefields",
+  "CNC feeds and speeds",
+  "5-axis machining",
+  "GD&T basics",
   "Black holes explained",
-  "Route 66 diners",
-  "Local hiking trails",
 ];
 
 // A single content item shape used across Home, Explore, Favorites, Trip Planner.
-// type: podcast | attraction | trail | museum
+// type: podcast | lesson | attraction | trail | museum
+// Every item needs a `youtubeId` to be playable — see scripts/fetch-youtube-ids.mjs.
 export const ITEMS = [
   {
     id: "it_01",
@@ -279,6 +286,154 @@ export const ITEMS = [
     setting: "outdoor",
     gradient: "from-rose-600 via-red-800 to-amber-900",
     location: "Holbrook, AZ",
+  },
+
+  // Technical learning. These are `lesson` items: video-first teaching content
+  // rather than narrative podcasts. youtubeId values are filled in by
+  // scripts/fetch-youtube-ids.mjs, never hand-written.
+  {
+    id: "it_17",
+    youtubeId: "FNYEXjRmDtI",
+    type: "lesson",
+    title: "How CNC Machines Actually Work",
+    description: "From G-code to closed-loop servos — a walkthrough of what happens between a toolpath and a finished part.",
+    category: "cnc",
+    duration: 25,
+    distance: null,
+    rating: 4.8,
+    kidFriendly: true,
+    free: true,
+    setting: "indoor",
+    gradient: "from-sky-600 via-blue-800 to-indigo-900",
+    host: "Concerning Reality",
+  },
+  {
+    id: "it_18",
+    youtubeId: "-aObuoV0Kmw",
+    type: "lesson",
+    title: "Feeds and Speeds, Properly Explained",
+    description: "Surface speed, chip load, and why the right numbers save both your tool and your cycle time.",
+    category: "cnc",
+    duration: 32,
+    distance: null,
+    rating: 4.9,
+    kidFriendly: false,
+    free: true,
+    setting: "indoor",
+    gradient: "from-cyan-600 via-sky-800 to-slate-900",
+    host: "Machining-Tutorials",
+  },
+  {
+    id: "it_19",
+    youtubeId: "TRmvk6Mw03Y",
+    type: "lesson",
+    title: "5-Axis Machining: What Changes",
+    description: "Why simultaneous motion beats 3+2, where it earns its cost, and the fixturing that makes it work.",
+    category: "cnc",
+    duration: 28,
+    distance: null,
+    rating: 4.7,
+    kidFriendly: false,
+    free: true,
+    setting: "indoor",
+    gradient: "from-indigo-600 via-violet-800 to-slate-900",
+    host: "Protolabs",
+  },
+  {
+    id: "it_20",
+    youtubeId: "G7wnGeR_69k",
+    type: "lesson",
+    title: "GD&T From First Principles",
+    description: "Datums, feature control frames, and why true position beats stacked plus-minus tolerances.",
+    category: "engineering",
+    duration: 38,
+    distance: null,
+    rating: 4.8,
+    kidFriendly: false,
+    free: true,
+    setting: "indoor",
+    gradient: "from-slate-500 via-slate-700 to-slate-900",
+    host: "The Efficient Engineer",
+  },
+  {
+    id: "it_21",
+    youtubeId: "GSXZipWl0fU",
+    type: "lesson",
+    title: "Tolerance Stack-Up Analysis",
+    description: "Worst-case versus RSS, and how a stack-up quietly decides whether an assembly goes together at all.",
+    category: "engineering",
+    duration: 30,
+    distance: null,
+    rating: 4.6,
+    kidFriendly: false,
+    free: true,
+    setting: "indoor",
+    gradient: "from-zinc-500 via-slate-700 to-neutral-900",
+    host: "R. Dean Odell",
+  },
+  {
+    id: "it_22",
+    youtubeId: "HQl6ZnXwplM",
+    type: "lesson",
+    title: "Design for Manufacturability",
+    description: "The geometry choices that decide cost before anyone quotes the part — draft, radii, wall thickness, access.",
+    category: "engineering",
+    duration: 34,
+    distance: null,
+    rating: 4.7,
+    kidFriendly: false,
+    free: true,
+    setting: "indoor",
+    gradient: "from-teal-600 via-slate-700 to-slate-900",
+    host: "Protolabs",
+  },
+  {
+    id: "it_23",
+    youtubeId: "J4AsaPVgmq0",
+    type: "lesson",
+    title: "Spline Cutting on Production Equipment",
+    description: "A close look at high-volume spline cutting — the tooling, work holding, and setup behind a repeatable precision feature.",
+    category: "manufacturing",
+    duration: 45,
+    distance: null,
+    rating: 4.8,
+    kidFriendly: true,
+    free: true,
+    setting: "indoor",
+    gradient: "from-orange-600 via-amber-800 to-stone-900",
+    host: "MMW Auto Industries",
+  },
+  {
+    id: "it_24",
+    youtubeId: "19XZ4jwrXe0",
+    type: "lesson",
+    title: "Additive Manufacturing for Metal Parts",
+    description: "DMLS, binder jetting, and where printed metal genuinely beats subtractive — plus where it still doesn't.",
+    category: "manufacturing",
+    duration: 36,
+    distance: null,
+    rating: 4.6,
+    kidFriendly: false,
+    free: true,
+    setting: "indoor",
+    gradient: "from-amber-600 via-orange-800 to-red-900",
+    host: "Tri-Tech 3D",
+  },
+  {
+    id: "it_25",
+    youtubeId: "0agL-nQeoYg",
+    type: "lesson",
+    title: "Lean Manufacturing and Takt Time",
+    description: "Flow, WIP limits, and the arithmetic that tells you whether a line can actually hit its rate.",
+    category: "manufacturing",
+    duration: 29,
+    distance: null,
+    rating: 4.5,
+    kidFriendly: false,
+    free: true,
+    setting: "indoor",
+    gradient: "from-yellow-600 via-amber-800 to-stone-900",
+    host: "LeanActivity",
   },
 ];
 

@@ -79,6 +79,51 @@
       "youtubeId": "7CPv0NSIG2M",
       "title": "The Plate Tectonics Revolution: Crash Course Geography #19",
       "author": "CrashCourse"
+    },
+    "it_17": {
+      "youtubeId": "FNYEXjRmDtI",
+      "title": "What is CNC Machining and How Does it Work?",
+      "author": "Concerning Reality"
+    },
+    "it_18": {
+      "youtubeId": "-aObuoV0Kmw",
+      "title": "Feeds and Speeds Explained: A Beginner's Guide for Machinists",
+      "author": "Machining-Tutorials"
+    },
+    "it_19": {
+      "youtubeId": "TRmvk6Mw03Y",
+      "title": "What is 5 axis CNC machining? (5-axis machining explained)",
+      "author": "Protolabs"
+    },
+    "it_20": {
+      "youtubeId": "G7wnGeR_69k",
+      "title": "Understanding GD&T",
+      "author": "The Efficient Engineer"
+    },
+    "it_21": {
+      "youtubeId": "GSXZipWl0fU",
+      "title": "Tolerance Stackup: Simple Assembly",
+      "author": "R. Dean Odell"
+    },
+    "it_22": {
+      "youtubeId": "HQl6ZnXwplM",
+      "title": "What is Design for Manufacturing? DFM (engineer must know)",
+      "author": "Protolabs"
+    },
+    "it_24": {
+      "youtubeId": "19XZ4jwrXe0",
+      "title": "Basic rules of Metal 3D Printing | Metal Additive Manufacturing",
+      "author": "Tri-Tech 3D"
+    },
+    "it_25": {
+      "youtubeId": "0agL-nQeoYg",
+      "title": "How to measure TAKT TIME and CYCLE TIME? The Lean Manufacturing Guide",
+      "author": "LeanActivity"
+    },
+    "it_23": {
+      "youtubeId": "J4AsaPVgmq0",
+      "title": "How It’s Made: The High-Tech Process of Spline Cutting at mmw auto industries",
+      "author": "MMW Auto Industries® "
     }
   },
   "failures": []

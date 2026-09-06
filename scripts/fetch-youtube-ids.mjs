@@ -39,6 +39,16 @@ const QUERIES = {
   it_14: "old growth forest cathedral grove documentary",
   it_15: "plate tectonics explained documentary",
   it_16: "wigwam village motel route 66 history",
+  // Technical learning
+  it_17: "how CNC machines work explained",
+  it_18: "feeds and speeds CNC machining explained",
+  it_19: "5 axis CNC machining explained",
+  it_20: "GD&T geometric dimensioning and tolerancing basics",
+  it_21: "tolerance stack up analysis explained",
+  it_22: "design for manufacturability machining",
+  it_23: "precision machine shop tour how parts are made",
+  it_24: "metal 3d printing additive manufacturing explained",
+  it_25: "lean manufacturing takt time explained",
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
