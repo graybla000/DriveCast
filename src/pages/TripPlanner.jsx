@@ -11,17 +11,11 @@ import { cn } from "@/lib/utils";
 // so the number of interests that actually drive a fetch is capped.
 const MAX_INTEREST_FETCHES = 3;
 
-const DURATIONS = [
-  { id: "1-2", label: "1–2 hours", maxMin: 120 },
-  { id: "2-4", label: "2–4 hours", maxMin: 240 },
-  { id: "4-6", label: "4–6 hours", maxMin: 360 },
-  { id: "6+", label: "6+ hours", maxMin: 999 },
-];
-
 export default function TripPlanner() {
-  const { saveTrip, trips, deleteTrip, startPlaying } = useAppStore();
-  const [destination, setDestination] = useState("");
-  const [duration, setDuration] = useState("2-4");
+  // Destination and trip length both come from the drive — there's no separate
+  // destination field or duration picker. Two sources for the same two facts
+  // could disagree, and the drive is the one backed by real routing data.
+  const { saveTrip, trips, deleteTrip, startPlaying, drive, driveMinutes, isDriveActive } = useAppStore();
   const [interests, setInterests] = useState([]);
   const [suggestions, setSuggestions] = useState(null);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -34,9 +28,8 @@ export default function TripPlanner() {
   const pool = useYouTubeSearches(fetchIds.map((id) => ({ query: queryForCategory(id), category: id })));
 
   const curate = () => {
-    const maxMin = DURATIONS.find((d) => d.id === duration).maxMin;
-    // Build a route: greedily fill the trip duration with a mix.
-    let remaining = maxMin;
+    // Fill the actual drive, greedily, with a shuffled mix.
+    let remaining = driveMinutes;
     const route = [];
     const shuffled = [...pool.videos].sort(() => Math.random() - 0.5);
     for (const item of shuffled) {
@@ -46,14 +39,15 @@ export default function TripPlanner() {
       }
       if (remaining <= 0) break;
     }
-    setSuggestions(route.length ? route : pool.videos.slice(0, 4));
+    setSuggestions(route);
   };
 
   const saveCurrent = () => {
     if (!suggestions?.length) return;
     saveTrip({
-      destination: destination || "Untitled trip",
-      duration,
+      destination: drive.destination,
+      origin: drive.originLabel || drive.origin,
+      driveMinutes,
       interests,
       // Full snapshots, not ids: there is no catalog to resolve ids against.
       stops: suggestions,
@@ -76,35 +70,28 @@ export default function TripPlanner() {
       <DrivePanel variant="setup" />
 
       <div className="space-y-4 glass hairline rounded-3xl p-5">
-        <div>
-          <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-            <MapPin size={14} /> Destination
-          </label>
-          <input
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-            placeholder="e.g. Grand Canyon, AZ"
-            className="w-full h-14 px-4 py-3.5 rounded-2xl bg-muted/40 hairline text-[16px] font-medium focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all"
-          />
-        </div>
-
-        <div>
-          <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-            <Clock size={14} /> Trip duration
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {DURATIONS.map((d) => (
-              <button
-                key={d.id}
-                onClick={() => setDuration(d.id)}
-                className={cn(
-                  "h-12 rounded-2xl text-[14px] font-semibold transition-all active:scale-95",
-                  duration === d.id ? "bg-accent text-accent-foreground glow-accent" : "glass hairline text-muted-foreground"
-                )}
-              >
-                {d.label}
-              </button>
-            ))}
+        {/* Both facts are read-only here, restated so it's obvious what the
+            curation is filling. Change them by changing the drive above. */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-2xl bg-muted/40 hairline px-3.5 py-3">
+            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <MapPin size={11} /> Destination
+            </p>
+            <p className="text-[14px] font-semibold truncate mt-1">
+              {isDriveActive ? drive.destination : <span className="text-muted-foreground">Set a drive</span>}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-muted/40 hairline px-3.5 py-3">
+            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <Clock size={11} /> Drive time
+            </p>
+            <p className="text-[14px] font-semibold mt-1">
+              {isDriveActive ? (
+                `${Math.floor(driveMinutes / 60)}h ${driveMinutes % 60}m`
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </p>
           </div>
         </div>
 
@@ -130,9 +117,16 @@ export default function TripPlanner() {
 
         <button
           onClick={curate}
-          className="w-full h-14 rounded-2xl bg-gradient-to-r from-accent to-cyan-500 text-accent-foreground font-bold text-[15px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+          disabled={!isDriveActive}
+          className={cn(
+            "w-full h-14 rounded-2xl font-bold text-[15px] flex items-center justify-center gap-2 transition-transform",
+            isDriveActive
+              ? "bg-gradient-to-r from-accent to-cyan-500 text-accent-foreground active:scale-[0.98]"
+              : "bg-muted text-muted-foreground cursor-not-allowed"
+          )}
         >
-          <RouteIcon size={18} /> Curate suggestions
+          <RouteIcon size={18} />
+          {isDriveActive ? "Fill the drive" : "Set a drive first"}
         </button>
       </div>
 
@@ -183,9 +177,14 @@ export default function TripPlanner() {
                 <div key={trip.id} className="glass hairline rounded-2xl p-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-[15px] font-bold flex items-center gap-1.5"><MapPin size={14} className="text-accent" /> {trip.destination}</p>
+                      <p className="text-[15px] font-bold flex items-center gap-1.5"><MapPin size={14} className="text-accent" /> {trip.destination || "Untitled trip"}</p>
                       <p className="text-[12px] text-muted-foreground font-semibold mt-0.5">
-                        {DURATIONS.find((d) => d.id === trip.duration)?.label} · {stops.length} stops
+                        {/* driveMinutes is only on trips saved since the drive
+                            became the source; older ones just show their stops. */}
+                        {trip.driveMinutes
+                          ? `${Math.floor(trip.driveMinutes / 60)}h ${trip.driveMinutes % 60}m drive · `
+                          : ""}
+                        {stops.length} stop{stops.length === 1 ? "" : "s"}
                       </p>
                     </div>
                     <button onClick={() => deleteTrip(trip.id)} aria-label="Delete trip" className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground active:scale-90 transition-transform">
