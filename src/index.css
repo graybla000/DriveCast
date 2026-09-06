@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Dark theme is the PRIMARY (default) — Apple HIG iOS native, driving clarity */
+  :root,
+  .dark {
+    --background: 222 30% 6%;
+    --foreground: 210 40% 98%;
+    --surface: 225 27% 12%;
+    --card: 223 30% 17%;
+    --card-foreground: 210 40% 98%;
+    --popover: 225 27% 12%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 199 93% 60%;
+    --primary-foreground: 222 40% 10%;
+    --secondary: 38 92% 50%;
+    --secondary-foreground: 222 40% 10%;
+    --muted: 223 30% 17%;
+    --muted-foreground: 215 16% 65%;
+    --accent: 199 93% 60%;
+    --accent-foreground: 222 40% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 219 25% 24%;
+    --input: 219 25% 24%;
+    --ring: 199 93% 60%;
+    --gold: 38 92% 50%;
+    --radius: 1.25rem;
+    --font-heading: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .light {
+    --background: 220 20% 96%;
+    --foreground: 222 39% 8%;
+    --surface: 0 0% 100%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 39% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 39% 8%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 38 92% 50%;
+    --secondary-foreground: 222 40% 10%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 215 16% 42%;
+    --accent: 199 89% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 199 89% 48%;
+    --gold: 38 92% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background-color: hsl(var(--card) / 0.7);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+  }
+  .glass-surface {
+    background-color: hsl(var(--surface) / 0.72);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+  .hairline {
+    border: 1px solid hsl(var(--border));
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .text-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  .text-mono {
+    font-family: var(--font-mono);
+  }
+  .glow-accent {
+    box-shadow: 0 0 0 3px hsl(var(--accent) / 0.25), 0 0 24px 0 hsl(var(--accent) / 0.35);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
