@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { MapPin, Clock, Sparkles, Save, Trash2, Route as RouteIcon, Check } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
 import { CATEGORIES, ITEMS, itemsByCategory, getItemById } from "@/lib/contentData";

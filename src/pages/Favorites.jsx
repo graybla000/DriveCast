@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Heart, Map, Trash2, Bookmark } from "lucide-react";
+import { Heart, Map, Trash2 } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
 import { getItemById, CATEGORIES } from "@/lib/contentData";
 import ItemRow from "@/components/ItemRow";

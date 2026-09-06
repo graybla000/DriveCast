@@ -7,6 +7,7 @@ import SearchBar from "@/components/SearchBar";
 import FilterPills from "@/components/FilterPills";
 import SurpriseMeCard from "@/components/SurpriseMeCard";
 import CategoryCard from "@/components/CategoryCard";
+import HorizontalScroller from "@/components/HorizontalScroller";
 import ItemRow from "@/components/ItemRow";
 import SurpriseResultSheet from "@/components/SurpriseResultSheet";
 import { surpriseMe } from "@/lib/contentData";
@@ -80,7 +81,7 @@ export default function Home() {
           <SurpriseMeCard onClick={openSurprise} />
 
           <Section title="Browse categories" actionLabel="All" onAction={() => navigate("/explore")}>
-            <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-5 px-5">
+            <HorizontalScroller>
               {CATEGORIES.map((c) => (
                 <CategoryCard
                   key={c.id}
@@ -88,11 +89,11 @@ export default function Home() {
                   onClick={() => navigate(`/explore?category=${c.id}`)}
                 />
               ))}
-            </div>
+            </HorizontalScroller>
           </Section>
 
           <Section title="Trending now" icon={<TrendingUp size={16} className="text-gold" />}>
-            <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-5 px-5">
+            <HorizontalScroller>
               {trendingItems.map((item) => (
                 <button
                   key={item.id}
@@ -107,7 +108,7 @@ export default function Home() {
                   <p className="text-[11px] text-muted-foreground font-semibold mt-0.5">{item.duration} min · ★ {item.rating.toFixed(1)}</p>
                 </button>
               ))}
-            </div>
+            </HorizontalScroller>
           </Section>
 
           <Section title="Recent searches" icon={<Clock size={16} className="text-muted-foreground" />}>

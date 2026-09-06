@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { SlidersHorizontal, Heart, X, RotateCw, Sparkles } from "lucide-react";
+import { SlidersHorizontal, X, RotateCw, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
 import { ITEMS, applyFilters, CATEGORIES, surpriseMe } from "@/lib/contentData";
 import RecommendationCard from "@/components/RecommendationCard";
@@ -41,6 +41,38 @@ export default function Explore() {
     if (dir === "like" && current) toggleFavorite(current.id);
     advance();
   };
+
+  // Dragging the card is the only way to move through the deck on touch, which
+  // leaves desktop with no way to advance at all. These give pointer and
+  // keyboard users the same navigation. `deck.length` is a valid index — it's
+  // the "all caught up" state, reachable by swiping, so clicking must reach it
+  // too rather than stopping one short.
+  const canGoPrev = index > 0;
+  const canGoNext = index < deck.length;
+
+  const goPrev = () => setIndex((i) => Math.max(0, i - 1));
+  const goNext = () => setIndex((i) => Math.min(deck.length, i + 1));
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      // Don't hijack arrows while a sheet is open or a field has focus.
+      if (filtersOpen || surpriseOpen) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || document.activeElement?.isContentEditable) return;
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        goPrev();
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        goNext();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+     
+  }, [filtersOpen, surpriseOpen, deck.length]);
 
   const reshuffle = () => {
     setFilters(EMPTY_FILTERS);
@@ -117,11 +149,51 @@ export default function Explore() {
             </div>
           </div>
         )}
+
+        {/* Overlaid on the card rather than below it. Vertically centred on the
+            artwork (h-56), which keeps them clear of the card's own action row.
+            z-20 puts them above both stacked cards. */}
+        {deck.length > 0 && (
+          <>
+            <button
+              onClick={goPrev}
+              disabled={!canGoPrev}
+              aria-label="Previous suggestion"
+              className={cn(
+                "absolute left-3 top-28 -translate-y-1/2 z-20 flex items-center justify-center w-11 h-11 rounded-full",
+                "bg-black/40 backdrop-blur-md text-white ring-1 ring-white/20 shadow-lg shadow-black/40",
+                "transition-all active:scale-90",
+                canGoPrev ? "hover:bg-black/60" : "opacity-30 cursor-not-allowed"
+              )}
+            >
+              <ChevronLeft size={22} />
+            </button>
+
+            <button
+              onClick={goNext}
+              disabled={!canGoNext}
+              aria-label="Next suggestion"
+              className={cn(
+                "absolute right-3 top-28 -translate-y-1/2 z-20 flex items-center justify-center w-11 h-11 rounded-full",
+                "bg-black/40 backdrop-blur-md text-white ring-1 ring-white/20 shadow-lg shadow-black/40",
+                "transition-all active:scale-90",
+                canGoNext ? "hover:bg-black/60" : "opacity-30 cursor-not-allowed"
+              )}
+            >
+              <ChevronRight size={22} />
+            </button>
+
+            <span className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md ring-1 ring-white/20 text-white text-[11px] font-bold tabular-nums">
+              {Math.min(index + 1, deck.length)} / {deck.length}
+            </span>
+          </>
+        )}
       </div>
 
-      {current && (
+      {deck.length > 0 && (
         <p className="text-center text-[12px] font-semibold text-muted-foreground">
-          Swipe <span className="text-accent">right to save</span> · left to skip · {index + 1} of {deck.length}
+          Swipe or use <span className="text-accent">←</span> <span className="text-accent">→</span> · swipe right
+          to save
         </p>
       )}
 

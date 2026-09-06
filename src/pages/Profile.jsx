@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Sun, Moon, Bell, Mic, Download, Car, Sparkles, Crown, LogOut,
   Baby, Heart, Map, Clock,

@@ -1,5 +1,4 @@
 import React from "react";
-import { Link } from "react-router-dom";
 import { CategoryIcon } from "./CategoryIcon";
 
 // Large 160x200 category card for the horizontal carousel.

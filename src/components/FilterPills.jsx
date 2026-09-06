@@ -1,10 +1,11 @@
 import React from "react";
+import HorizontalScroller from "@/components/HorizontalScroller";
 import { cn } from "@/lib/utils";
 
 // Horizontal scrollable quick-filter pill chips.
 export default function FilterPills({ options, active, onSelect }) {
   return (
-    <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5 py-0.5">
+    <HorizontalScroller gapClass="gap-2" className="py-0.5">
       {options.map((opt) => {
         const isActive = active === opt.id;
         return (
@@ -22,6 +23,6 @@ export default function FilterPills({ options, active, onSelect }) {
           </button>
         );
       })}
-    </div>
+    </HorizontalScroller>
   );
 }

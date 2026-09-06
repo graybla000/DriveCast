@@ -1,4 +1,11 @@
-# DriveCast — base44 project structure
+# DriveCast — base44 project structure (historical)
+
+> **This is a point-in-time record of the original base44 export, kept for
+> provenance — it no longer describes the current tree.** base44 was removed on
+> 2026-09-06: the SDK, Vite plugin, hosted auth pages, `base44/`, and
+> `src/api/base44Client.js` are all gone. See `README.md` and `AGENTS.md` for
+> how the project is laid out now. The extraction notes below are still worth
+> keeping for the Monaco gotcha they document.
 
 Extracted from the base44 editor file tree on 2026-09-06.
 

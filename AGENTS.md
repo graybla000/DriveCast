@@ -2,33 +2,89 @@
 
 ## Project Context
 
-This is a Base44 app repository. Treat it as user-owned application code, keep changes focused on the user's request, and preserve existing project conventions.
+DriveCast is a local-first React + Vite single-page app. It started life as a
+base44 project; base44 was removed entirely on 2026-09-06 (SDK, Vite plugin,
+hosted auth, `base44/` config). There is **no backend** — treat this as a
+frontend app that owns all of its own state.
 
-Start with `README.md` for local setup, environment variables, and publish workflow.
+Development happens locally with Claude Code. This project is deliberately
+**local only**: no GitLab remote, no hosted deployment. Version control is a
+local git repo with no remote — don't add one.
 
-## Base44 References
+It is an early template, well short of its intended feature set, so prefer
+building the thing asked for over preserving existing scaffolding.
 
-- CLI overview: https://docs.base44.com/developers/references/cli/get-started/overview.md
-- Agent skills: https://docs.base44.com/developers/backend/overview/skills.md
-
-If your agent supports Agent Skills, install or update Base44 skills before Base44-specific work:
+## Commands
 
 ```bash
-npx skills add base44/skills
+npm run dev      # Vite dev server, http://localhost:5173
+npm run build    # production build to dist/
+npm run lint     # eslint
 ```
 
-## Key Files
+Only one dev server should run at a time. If port 5173 is "in use", Vite
+silently takes 5174 and you end up looking at a stale app — kill the orphan
+process rather than using the new port.
 
-- `src/`: frontend application source.
-- `src/api/base44Client.js`: frontend Base44 SDK client.
-- `vite.config.js`: Vite config and Base44 Vite plugin setup.
-- `.env.local`: local-only environment values; never commit secrets.
+## Where things live
 
-## Working Notes
+- `src/pages/` — the five routes: Home, Explore, TripPlanner, Favorites, Profile.
+  All are public; there is no auth.
+- `src/lib/contentData.js` — **all app content**. Static `ITEMS` array plus the
+  category/filter definitions. This is the data layer; there is no API.
+- `src/lib/AppStore.jsx` — single shared store (context) composed from the
+  hooks in `src/hooks/`. Every screen reads state from here.
+- `src/hooks/useYouTubePlayer.js` — the YouTube IFrame player wrapper.
+- `src/components/ui/` — shadcn/ui primitives. Prefer composing these.
+- `scripts/` — content tooling (see below).
+- `src/App.jsx` — routes; `src/components/AppLayout.jsx` — the shared shell.
 
-- Use `base44 dev` as the default local development command when you need the local Base44 backend. It can run the backend and frontend together.
-- When docs or code mention the frontend being started automatically, that usually means the Base44 project config includes `site.serveCommand`, for example `"serveCommand": "npm run dev"` in `base44/config.jsonc`.
-- Use `npm run dev` only for frontend-only work against the hosted Base44 backend.
-- Prefer the existing Base44 CLI workflow over adding new npm scripts for Base44-specific tasks.
-- Reuse the existing SDK client and Vite plugin patterns before adding new Base44 integration paths.
-- Run the relevant checks from `package.json` before finishing code changes.
+Persistence is `localStorage` only, via `src/hooks/useLocalStorage.js`
+(favorites, trips, now-playing, recent searches).
+
+## Playback
+
+Audio/video comes from YouTube through the IFrame Player API. Each item in
+`contentData.js` carries a `youtubeId`.
+
+Two constraints worth knowing before changing this:
+
+- **The player must stay visible.** YouTube's API terms require it, and hidden
+  or zero-size iframes get throttled by browsers. `ContinueListeningBar` hosts
+  the real player surface; don't hide it to make an audio-only player.
+- **Background playback doesn't work.** Mobile browsers pause iframe audio when
+  backgrounded or on screen lock, so "listen with the phone away" is not
+  achievable with YouTube embeds. Real audio files would be needed for that.
+
+The bar lives in `AppLayout` above `<main>`, which keeps it mounted across route
+changes so playback survives navigation.
+
+### Adding content
+
+Don't hand-write video ids — a deleted, private, or embedding-disabled video
+fails *silently* in the player. Use the scripts:
+
+```bash
+node scripts/fetch-youtube-ids.mjs           # search + verify via oEmbed
+node scripts/fetch-youtube-ids.mjs --resume  # retry only what failed
+node scripts/merge-youtube-ids.mjs           # write ids into contentData.js
+```
+
+Add a query to the `QUERIES` map in `fetch-youtube-ids.mjs` for each new item.
+
+## Network constraints on this machine
+
+- `i.ytimg.com` and `i9.ytimg.com` are **blocked**; `img.youtube.com` works.
+  Use `https://img.youtube.com/vi/<id>/hqdefault.jpg` for thumbnails.
+- npm points at Blue Origin Artifactory with a token that expires roughly
+  monthly.
+
+## Conventions
+
+- `@/` path alias maps to `src/` — declared in `vite.config.js` (Vite) and
+  `jsconfig.json` (editor). Both need it.
+- Tailwind utility classes, with `cn()` from `@/lib/utils` for conditionals.
+- `.jsx` for files containing JSX, `.js` for plain modules.
+- Comments explain *why*, not what — match the existing density.
+- Run `npm run build` before finishing; it catches import errors that the dev
+  server's lazy transform can hide.

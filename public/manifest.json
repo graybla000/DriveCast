@@ -1,0 +1,17 @@
+{
+  "name": "DriveCast",
+  "short_name": "DriveCast",
+  "description": "Discover podcasts, places, and roadside gems worth the detour.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0E14",
+  "theme_color": "#0B0E14",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ]
+}
