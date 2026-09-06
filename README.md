@@ -32,6 +32,13 @@ stays server-side. `render.yaml` is a Blueprint — point Render at this repo an
 it reads the config. The one thing it can't carry is the key itself: set
 `YOUTUBE_API_KEY` in Render's Environment tab.
 
+Build command: `npm ci --include=dev && npm run build`. The `--include=dev` is
+required, not cosmetic — the build tooling (`vite`, `tailwindcss`, …) lives in
+devDependencies, and npm omits those when `NODE_ENV=production`, which would fail
+the build with `vite: not found`. A service created through Render's UI rather
+than the Blueprint uses whatever build command is in its Settings, so check it
+there too.
+
 Render's free tier spins the service down when idle, so the first request after
 a quiet spell takes about a minute to wake up.
 

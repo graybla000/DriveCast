@@ -9,7 +9,12 @@ services:
     plan: free
     # Free instances spin down when idle; the first request after that takes
     # roughly a minute to wake. Upgrade the plan if that matters.
-    buildCommand: npm ci && npm run build
+    # --include=dev is load-bearing: vite, @vitejs/plugin-react, tailwindcss and
+    # postcss are devDependencies, and npm omits devDependencies when
+    # NODE_ENV=production. Without the flag the build dies at "vite: not found"
+    # on any host that sets that variable. Measured: 637 packages install
+    # normally, 408 with NODE_ENV=production, and vite is in the missing 229.
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /healthz
     envVars:
