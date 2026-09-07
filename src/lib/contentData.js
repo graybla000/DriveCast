@@ -111,10 +111,12 @@ export const CATEGORIES = [
   },
   {
     id: "woodworking",
-    name: "DIY Woodworking",
+    // Label stays short for the pills and cards; the query is what makes the
+    // content DIY-oriented rather than, say, industrial millwork.
+    name: "Woodworking",
     icon: "Hammer",
     gradient: "from-amber-600/80 to-yellow-800/80",
-    query: "woodworking project build how to",
+    query: "DIY woodworking project build how to",
     // Short and show-oriented: the podcast directory matches show titles, so
     // "woodworking" finds the actual shows where a longer phrase wouldn't.
     podcastQuery: "woodworking",
