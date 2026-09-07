@@ -1,6 +1,7 @@
-import React from "react";
-import { Play, Pause, X, AlertCircle } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Play, Pause, X, AlertCircle, Maximize2, Minimize2 } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
+import { cn } from "@/lib/utils";
 
 const formatTime = (seconds) => {
   if (!Number.isFinite(seconds) || seconds <= 0) return "0:00";
@@ -32,6 +33,24 @@ export default function ContinueListeningBar() {
     playerContainerRef,
     isAudioPlayback,
   } = useAppStore();
+
+  // Expanded video. The iframe is NOT moved or re-rendered elsewhere when this
+  // flips — only the container's classes change, so the same DOM node grows.
+  // Re-parenting it would destroy the YouTube player and stop playback.
+  const [expanded, setExpanded] = useState(false);
+
+  // Collapse on Escape, which is what a full-screen-ish overlay should honour.
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e) => e.key === "Escape" && setExpanded(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded]);
+
+  // Nothing to expand once the item is gone or it's audio-only.
+  useEffect(() => {
+    if (!nowPlaying || isAudioPlayback) setExpanded(false);
+  }, [nowPlaying, isAudioPlayback]);
 
   if (!nowPlaying) return null;
 
@@ -66,9 +85,55 @@ export default function ContinueListeningBar() {
               )}
             </div>
           ) : (
+            /* The container is a fixed overlay when expanded and a thumbnail when
+               not — same element either way, so the player is never rebuilt. */
             <div
-              ref={playerContainerRef}
-              className="w-[92px] h-[52px] rounded-lg overflow-hidden bg-black shrink-0 [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:block"
+              className={cn(
+                "relative shrink-0 bg-black overflow-hidden [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:block",
+                expanded
+                  // Centred a little below the midpoint rather than dead centre:
+                  // at 50% it sits visually high, since the eye reads the sticky
+                  // header and bar above it as part of the layout.
+                  ? "fixed inset-x-3 top-[56%] -translate-y-1/2 z-[60] aspect-video rounded-2xl shadow-2xl shadow-black/80 ring-1 ring-white/15 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[min(92vw,900px)]"
+                  : "w-[92px] h-[52px] rounded-lg"
+              )}
+            >
+              <div ref={playerContainerRef} className="w-full h-full" />
+
+              {/* While collapsed this sits over the iframe to catch the tap —
+                  an iframe swallows clicks, so the expand affordance can't be
+                  behind it. Removed when expanded so YouTube's own controls
+                  (including its native fullscreen) work normally. */}
+              {!expanded && (
+                <button
+                  onClick={() => setExpanded(true)}
+                  aria-label="Expand video"
+                  title="Expand video"
+                  className="absolute inset-0 flex items-center justify-center bg-black/25 hover:bg-black/10 transition-colors"
+                >
+                  <Maximize2 size={15} className="text-white drop-shadow" />
+                </button>
+              )}
+
+              {expanded && (
+                <button
+                  onClick={() => setExpanded(false)}
+                  aria-label="Shrink video"
+                  className="absolute top-2 right-2 z-10 w-9 h-9 rounded-full bg-black/70 backdrop-blur-md ring-1 ring-white/20 flex items-center justify-center text-white active:scale-90 transition-transform"
+                >
+                  <Minimize2 size={16} />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Backdrop, rendered as a sibling so it never wraps the player. */}
+          {expanded && (
+            <button
+              onClick={() => setExpanded(false)}
+              aria-label="Close expanded video"
+              tabIndex={-1}
+              className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm cursor-default"
             />
           )}
 
