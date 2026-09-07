@@ -89,6 +89,14 @@ export const CATEGORIES = [
     query: "hidden gems unusual places documentary",
     podcastQuery: "travel stories",
   },
+  {
+    id: "sports",
+    name: "Sports",
+    icon: "Trophy",
+    gradient: "from-lime-500/80 to-green-700/80",
+    query: "sports analysis breakdown documentary",
+    podcastQuery: "sports",
+  },
 ];
 
 export const getCategory = (id) => CATEGORIES.find((c) => c.id === id);

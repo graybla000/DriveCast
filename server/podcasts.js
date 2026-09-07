@@ -22,9 +22,14 @@ const cache = new Map();
 const CACHE_MAX = 200;
 
 // How many shows to pull episodes from per query. Each is a separate feed fetch,
-// so this trades breadth against latency.
-const SHOWS_PER_QUERY = 4;
-const EPISODES_PER_SHOW = 6;
+// so this trades breadth against latency — mitigated by fetching in parallel and
+// giving each feed its own timeout, so one slow host can't hold up the rest.
+const SHOWS_PER_QUERY = 12;
+const EPISODES_PER_SHOW = 8;
+
+// Some podcast hosts are slow or hang outright. Without a per-feed deadline a
+// single bad one would stall the whole response.
+const FEED_TIMEOUT_MS = 6000;
 
 export const PODCAST_ERROR = {
   NETWORK: "network",
@@ -114,13 +119,18 @@ async function searchShows(query, limit) {
 /** Fetch one feed and pull out playable episodes. */
 async function fetchEpisodes(show) {
   let res;
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), FEED_TIMEOUT_MS);
   try {
     res = await fetch(show.feedUrl, {
       headers: { "User-Agent": "DriveCast/1.0 (podcast client)" },
       redirect: "follow",
+      signal: abort.signal,
     });
   } catch {
-    return []; // one bad feed shouldn't fail the whole search
+    return []; // a slow or broken feed shouldn't fail the whole search
+  } finally {
+    clearTimeout(timer);
   }
   if (!res.ok) return [];
 

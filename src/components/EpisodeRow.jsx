@@ -9,7 +9,7 @@ import { useAppStore } from "@/lib/AppStore";
 // Episodes are the source that works while driving: they play through a real
 // <audio> element, so playback continues when the browser is backgrounded and the
 // phone shows lock-screen controls.
-export default function EpisodeRow({ query, category = null, maxResults = 10 }) {
+export default function EpisodeRow({ query, category = null, maxResults = 40 }) {
   const { startPlaying, fitsDrive, driveMinutes } = useAppStore();
   const { episodes: all, isLoading, error } = usePodcastSearch(query, { category, maxResults });
 
