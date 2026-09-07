@@ -56,7 +56,9 @@ export default function FiltersSheet({ open, onClose, filters, onApply }) {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 320 }}
-            className="fixed bottom-0 inset-x-0 z-50 rounded-t-[28px] glass-surface hairline border-b-0 max-h-[85vh] flex flex-col"
+            // Same width constraint as the rest of the app; a fixed element
+            // otherwise ignores the layout's max-w-md and spans the viewport.
+            className="fixed bottom-0 inset-x-0 mx-auto max-w-md z-50 rounded-t-[28px] glass-surface hairline border-b-0 max-h-[85vh] flex flex-col"
           >
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1.5 rounded-full bg-muted-foreground/40" />

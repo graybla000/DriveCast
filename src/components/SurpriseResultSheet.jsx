@@ -27,7 +27,11 @@ export default function SurpriseResultSheet({ open, item, onClose, onReroll, onS
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0.5 }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="fixed bottom-0 inset-x-0 z-50 rounded-t-[32px] glass-surface hairline border-b-0 max-h-[90vh] overflow-y-auto no-scrollbar"
+            // mx-auto max-w-md matches TopBar, BottomNav and main. Being fixed,
+            // this sheet escapes the layout's width constraint, so without it the
+            // sheet stretched the full viewport width on anything wider than a
+            // phone.
+            className="fixed bottom-0 inset-x-0 mx-auto max-w-md z-50 rounded-t-[32px] glass-surface hairline border-b-0 max-h-[90vh] overflow-y-auto no-scrollbar"
           >
             <div className="flex justify-center pt-3 pb-1 sticky top-0 glass-surface z-10">
               <div className="w-10 h-1.5 rounded-full bg-muted-foreground/40" />
