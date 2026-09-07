@@ -11,6 +11,7 @@ import Explore from '@/pages/Explore';
 import TripPlanner from '@/pages/TripPlanner';
 import Favorites from '@/pages/Favorites';
 import Profile from '@/pages/Profile';
+import Sports from '@/pages/Sports';
 // Add page imports here
 
 function App() {
@@ -26,6 +27,9 @@ function App() {
               <Route path="/plan" element={<TripPlanner />} />
               <Route path="/favorites" element={<Favorites />} />
               <Route path="/profile" element={<Profile />} />
+              {/* Sports has its own screen rather than an Explore deck, because
+                  it's split by sport with a team picker per sport. */}
+              <Route path="/sports" element={<Sports />} />
             </Route>
             <Route path="*" element={<PageNotFound />} />
           </Routes>

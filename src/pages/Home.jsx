@@ -83,7 +83,10 @@ export default function Home() {
             options={CATEGORIES.map((c) => ({ id: c.id, label: c.name }))}
             active={activePill}
             onSelect={(id) => {
-              if (id) navigate(`/explore?category=${id}`);
+              // Sports has its own screen — subcategories and team pickers don't
+              // fit the Explore swipe deck.
+              if (id === "sports") navigate("/sports");
+              else if (id) navigate(`/explore?category=${id}`);
               else setActivePill(null);
             }}
           />
@@ -93,7 +96,11 @@ export default function Home() {
           <Section title="Browse categories" actionLabel="All" onAction={() => navigate("/explore")}>
             <HorizontalScroller>
               {CATEGORIES.map((c) => (
-                <CategoryCard key={c.id} category={c} onClick={() => navigate(`/explore?category=${c.id}`)} />
+                <CategoryCard
+                  key={c.id}
+                  category={c}
+                  onClick={() => navigate(c.id === "sports" ? "/sports" : `/explore?category=${c.id}`)}
+                />
               ))}
             </HorizontalScroller>
           </Section>
