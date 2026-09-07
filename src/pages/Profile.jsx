@@ -119,7 +119,7 @@ export default function Profile() {
         </div>
       </Section>
 
-      <Section title="Sports">
+      <Section title="Sports" allowOverflow>
         <Row
           icon={<Trophy size={18} />}
           label="Favorite teams"
@@ -180,11 +180,19 @@ function Stat({ icon, value, label }) {
   );
 }
 
-function Section({ title, children }) {
+/**
+ * `allowOverflow` is needed by any section containing a dropdown.
+ *
+ * overflow-hidden is here to clip children to the rounded corners, but it also
+ * clips absolutely-positioned popovers: the team pickers appeared to show fewer
+ * and fewer teams further down the list, because each one had less room left
+ * before the section's bottom edge cut it off.
+ */
+function Section({ title, children, allowOverflow = false }) {
   return (
     <section>
       <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2 px-1">{title}</p>
-      <div className="glass hairline rounded-2xl overflow-hidden">{children}</div>
+      <div className={cn("glass hairline rounded-2xl", !allowOverflow && "overflow-hidden")}>{children}</div>
     </section>
   );
 }
