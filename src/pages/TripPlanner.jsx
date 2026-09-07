@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   MapPin, Clock, Sparkles, Save, Trash2, Check, Navigation, LocateFixed,
   Loader2, ChevronLeft, ChevronRight, Car, AlertCircle, CreditCard, KeyRound,
@@ -32,6 +32,13 @@ function coordsFrom(value) {
   return { lat, lng };
 }
 
+/**
+ * Whether this is a device that hands maps links to a native app.
+ *
+ * Decides only how the link opens — a wrong guess costs a tab, not a feature.
+ */
+const isTouchDevice = () => window.matchMedia?.("(pointer: coarse)").matches ?? false;
+
 const formatDrive = (minutes) => {
   if (!minutes) return "";
   const h = Math.floor(minutes / 60);
@@ -44,7 +51,7 @@ export default function TripPlanner() {
     saveTrip, trips, deleteTrip, startPlaying,
     drive, driveMinutes, driveLoading, driveError,
     lookupDrive, locateMe, isLocating, locationError,
-    preferredCategories, activeSectors, isAudio, prewarmAudio,
+    preferredCategories, activeSectors, isAudio, prewarmAudio, startAudioOnly,
   } = useAppStore();
 
   const [origin, setOrigin] = useState(drive?.origin ?? "");
@@ -271,18 +278,40 @@ export default function TripPlanner() {
    * can call it too (keyboard activation fires no pointer events) without
    * restarting the episode.
    */
-  const startedRef = useRef(null);
-
   const startAudioEarly = () => {
     const first = queue[0];
-    if (!first || startedRef.current === first.id) return;
-    startedRef.current = first.id;
-    startPlaying(first);
+    if (first?.audioUrl) startAudioOnly(first);
   };
 
+  /**
+   * On a phone the maps link opens in THIS tab, not a new one.
+   *
+   * target="_blank" needs the tap's user activation to open a tab, and calling
+   * play() in the same tap consumes it — so Safari silently blocked the
+   * navigation on the first tap, the one that also starts the audio. The second
+   * tap worked only because playback was already running, so nothing started and
+   * the activation survived. That was the "works on the second try" symptom
+   * exactly.
+   *
+   * A same-tab navigation needs no activation, so it can't be blocked. A universal
+   * link still hands off to the Maps app without unloading this page, which is what
+   * keeps the audio going. Desktop keeps the new tab: there is no app to hand off
+   * to, so navigating away would close the player.
+   */
+  const newTabProps = useMemo(
+    () => (isTouchDevice() ? {} : { target: "_blank", rel: "noreferrer" }),
+    []
+  );
+
+  /**
+   * Registers now-playing and saves the trip. Runs on click, which means the
+   * browser has already dispatched it and the reflow from the bar appearing can no
+   * longer cost the navigation. The audio is running by now, so this doesn't
+   * restart it — load() leaves an identical src alone.
+   */
   const startTrip = () => {
     if (!queue.length) return;
-    startAudioEarly(); // no-op when pointerdown already did it
+    startPlaying(queue[0]);
     saveTrip({ destination, origin: originLabel || origin, driveMinutes, interests, stops: queue });
   };
 
@@ -489,8 +518,7 @@ export default function TripPlanner() {
             <div className="flex items-center gap-2">
               <a
                 href={links.google}
-                target="_blank"
-                rel="noreferrer"
+                {...newTabProps}
                 onPointerDown={startAudioEarly}
                 onClick={startTrip}
                 className="flex-1 h-14 rounded-2xl bg-gradient-to-r from-accent to-cyan-500 text-accent-foreground font-bold text-[14px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
@@ -499,8 +527,7 @@ export default function TripPlanner() {
               </a>
               <a
                 href={links.apple}
-                target="_blank"
-                rel="noreferrer"
+                {...newTabProps}
                 onPointerDown={startAudioEarly}
                 onClick={startTrip}
                 className="flex-1 h-14 rounded-2xl glass hairline font-bold text-[14px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"

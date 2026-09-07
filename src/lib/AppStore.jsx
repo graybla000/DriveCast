@@ -145,6 +145,20 @@ export function AppStoreProvider({ children }) {
      * spend a second and a half fetching before any sound comes out.
      */
     prewarmAudio: audio.prewarm,
+    /**
+     * Start audio WITHOUT registering it as now-playing.
+     *
+     * The registration is what mounts the Continue Listening bar, and that bar sits
+     * in the layout: mounting it pushes the page down 100px (measured). Doing that
+     * mid-tap moved the button out from under the finger before it lifted, so the
+     * browser never dispatched the click and a maps link never opened — while the
+     * audio, started on finger-down, played happily. Hence the "works on the second
+     * try" symptom: the bar was already up, so nothing moved.
+     *
+     * The audio element is imperative, so this makes sound without a re-render.
+     * Callers register now-playing afterwards, once the click has been dispatched.
+     */
+    startAudioOnly: (item) => (isEpisode(item) ? audio.load(item) : Promise.resolve(false)),
     recentSearches,
     addRecentSearch,
     clearRecentSearches,
