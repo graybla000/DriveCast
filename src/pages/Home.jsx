@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Clock, ArrowRight, AlertCircle, KeyRound, Headphones, Youtube } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
 import {
-  CATEGORIES, FEATURED_CATEGORY_IDS, getCategory, queryForCategory,
+  CATEGORIES, FEATURED_CATEGORY_IDS, getCategory, queryForCategory, queriesForCategory,
   podcastQueryForCategory, surpriseFrom,
 } from "@/lib/contentData";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,10 @@ const SEARCH_DEBOUNCE_MS = 600;
 
 export default function Home() {
   const navigate = useNavigate();
-  const { recentSearches, addRecentSearch, startPlaying, isDriveActive, preferredCategories } = useAppStore();
+  const {
+    recentSearches, addRecentSearch, startPlaying, isDriveActive,
+    preferredCategories, activeSectors,
+  } = useAppStore();
 
   // Rows follow the preferences set in Profile, falling back to the featured set
   // when none are chosen. Capped because every row is a live search.
@@ -126,7 +129,7 @@ export default function Home() {
                 {source === "audio" ? (
                   <EpisodeRow query={podcastQueryForCategory(id)} category={id} />
                 ) : (
-                  <VideoRow query={category.query} category={id} />
+                  <VideoRow queries={queriesForCategory(id, activeSectors)} category={id} />
                 )}
               </Section>
             );

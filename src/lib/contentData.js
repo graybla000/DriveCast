@@ -16,6 +16,8 @@ export const CATEGORIES = [
     gradient: "from-orange-500/80 to-amber-700/80",
     query: "manufacturing process explained factory production",
     podcastQuery: "manufacturing",
+    sectorAware: true,
+    sectorBase: "manufacturing",
   },
   {
     id: "cnc",
@@ -24,6 +26,8 @@ export const CATEGORIES = [
     gradient: "from-sky-500/80 to-indigo-700/80",
     query: "CNC machining tutorial explained",
     podcastQuery: "machining",
+    sectorAware: true,
+    sectorBase: "CNC machining",
   },
   {
     id: "engineering",
@@ -36,6 +40,8 @@ export const CATEGORIES = [
     // inside it — the specific stuff is what the search box is for.
     query: "mechanical engineering explained how it works",
     podcastQuery: "engineering",
+    sectorAware: true,
+    sectorBase: "engineering",
   },
   {
     id: "history",
@@ -68,6 +74,8 @@ export const CATEGORIES = [
     gradient: "from-emerald-500/80 to-teal-700/80",
     query: "business economics explained documentary",
     podcastQuery: "business",
+    sectorAware: true,
+    sectorBase: "business",
   },
   {
     id: "nature",
@@ -110,16 +118,84 @@ export const CATEGORIES = [
     // every Engineering result a GD&T video.
     query: "artificial intelligence explained how it works",
     podcastQuery: "artificial intelligence",
+    sectorAware: true,
+    sectorBase: "artificial intelligence",
   },
 ];
 
+/**
+ * Industry sectors, chosen in Profile, that narrow the technical categories.
+ *
+ * Picking Aerospace makes the Manufacturing row aerospace manufacturing and the
+ * Engineering row aerospace engineering. Only categories flagged `sectorAware`
+ * below are affected — an industry has nothing useful to say about History or
+ * Sports, and folding it in would just produce worse searches.
+ */
+export const SECTORS = [
+  { id: "aerospace", name: "Aerospace", term: "aerospace" },
+  { id: "automotive", name: "Automotive", term: "automotive" },
+  { id: "medical", name: "Medical Devices", term: "medical device" },
+  { id: "semiconductor", name: "Semiconductors", term: "semiconductor" },
+  { id: "energy", name: "Energy", term: "energy" },
+  { id: "defense", name: "Defense", term: "defense" },
+  { id: "construction", name: "Construction", term: "construction" },
+  { id: "marine", name: "Marine", term: "marine" },
+  { id: "robotics", name: "Robotics", term: "robotics" },
+  { id: "food", name: "Food & Beverage", term: "food production" },
+];
+
+export const getSector = (id) => SECTORS.find((s) => s.id === id);
+
 export const getCategory = (id) => CATEGORIES.find((c) => c.id === id);
 
-/** The YouTube query for a category id, falling back to its name. */
-export function queryForCategory(id) {
+/**
+ * The YouTube query for a category, optionally narrowed to an industry sector.
+ *
+ * With a sector chosen, a sector-aware category swaps its broad query for
+ * "<sector> <base> explained" — so Aerospace turns Manufacturing into aerospace
+ * manufacturing and Engineering into aerospace engineering. The short `sectorBase`
+ * is used rather than appending to the full query, because stacking two long
+ * phrases ("aerospace manufacturing process explained factory production") dilutes
+ * the search rather than focusing it.
+ *
+ * Categories without `sectorAware` ignore the sector entirely.
+ */
+export function queryForCategory(id, sectorId = null) {
   const category = getCategory(id);
-  return category?.query ?? category?.name ?? "";
+  if (!category) return "";
+
+  const sector = sectorId ? getSector(sectorId) : null;
+  if (sector && category.sectorAware && category.sectorBase) {
+    return `${sector.term} ${category.sectorBase} explained`;
+  }
+  return category.query ?? category.name ?? "";
 }
+
+/**
+ * All queries for a category given the selected sectors — ONE PER SECTOR.
+ *
+ * Separate searches rather than a combined query: "aerospace automotive
+ * manufacturing" dilutes the search, while "aerospace manufacturing" and
+ * "automotive manufacturing" run independently both return sharp results, and the
+ * row merges them. Costs one search per sector, which is why the caller caps how
+ * many sectors are active.
+ *
+ * Returns a single-element array when there are no sectors, or the category
+ * ignores them.
+ */
+export function queriesForCategory(id, sectorIds = []) {
+  const category = getCategory(id);
+  if (!category) return [];
+
+  const usable = (sectorIds ?? []).filter((s) => getSector(s));
+  if (!usable.length || !category.sectorAware || !category.sectorBase) {
+    return [queryForCategory(id)];
+  }
+  return usable.map((s) => queryForCategory(id, s));
+}
+
+/** Whether a sector selection changes what this category returns. */
+export const isSectorAware = (id) => Boolean(getCategory(id)?.sectorAware);
 
 /**
  * The podcast query for a category id.

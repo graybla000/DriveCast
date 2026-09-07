@@ -5,7 +5,7 @@ import { useFavoriteTeams } from "@/hooks/useFavoriteTeams";
 import TeamPicker from "@/components/TeamPicker";
 
 /**
- * Favourite team per sport. Shared by the Sports screen and Profile, so the same
+ * Favorite team per sport. Shared by the Sports screen and Profile, so the same
  * configuration is reachable from either — one implementation, one storage key,
  * no chance of the two drifting apart.
  *

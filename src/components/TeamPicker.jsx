@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState, useEffect } from "react";
 import { Star, X, ChevronDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Picks a favourite team from a fixed list.
+// Picks a favorite team from a fixed list.
 //
 // Typeahead rather than a plain <select>: a league has ~30 teams, which is a long
 // scroll on a phone, and people know the name they're looking for. Filtering is
@@ -60,7 +60,7 @@ export default function TeamPicker({ teams, value, onChange, placeholder = "Pick
         {value && (
           <button
             onClick={() => onChange(null)}
-            aria-label="Clear favourite team"
+            aria-label="Clear favorite team"
             className="w-10 h-10 shrink-0 rounded-xl glass hairline flex items-center justify-center text-muted-foreground active:scale-90 transition-transform"
           >
             <X size={14} />
@@ -80,22 +80,28 @@ export default function TeamPicker({ teams, value, onChange, placeholder = "Pick
               className="flex-1 min-w-0 bg-transparent text-[13px] font-medium focus:outline-none placeholder:text-muted-foreground/70"
             />
           </div>
-          <ul className="max-h-56 overflow-y-auto no-scrollbar">
+          {/* Exactly four rows tall, and the same for every sport. Rows are a fixed
+              height with no wrapping: long names like "Portland Trail Blazers"
+              wrapped to two lines in this narrow column, so the dropdown's height
+              varied by league depending on which names happened to wrap. */}
+          <ul className="max-h-[176px] overflow-y-auto no-scrollbar">
             {matches.map((team) => (
               <li key={team}>
                 <button
                   onClick={() => choose(team)}
                   className={cn(
-                    "w-full px-3.5 py-2.5 text-left text-[13px] font-medium transition-colors",
+                    "w-full h-11 px-3.5 flex items-center text-left text-[13px] font-medium transition-colors",
                     team === value ? "bg-accent/15 text-accent font-bold" : "hover:bg-accent/10"
                   )}
                 >
-                  {team}
+                  <span className="truncate">{team}</span>
                 </button>
               </li>
             ))}
             {matches.length === 0 && (
-              <li className="px-3.5 py-3 text-[12.5px] text-muted-foreground font-medium">No teams match.</li>
+              <li className="h-11 px-3.5 flex items-center text-[12.5px] text-muted-foreground font-medium">
+                No teams match.
+              </li>
             )}
           </ul>
         </div>

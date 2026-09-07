@@ -11,7 +11,7 @@ export const SPORTS = [
     id: "football",
     name: "Football",
     league: "NFL",
-    // Used when no favourite team is set.
+    // Used when no favorite team is set.
     query: "NFL football analysis breakdown",
     podcastQuery: "NFL football",
   },
@@ -102,7 +102,7 @@ export const TEAMS = {
 export const teamsForSport = (sportId) => TEAMS[getSport(sportId)?.league] ?? [];
 
 /**
- * What to search for a sport, given a favourite team.
+ * What to search for a sport, given a favorite team.
  *
  * With a team set the query becomes team-specific, which is the point — the row
  * then returns that team's content rather than league-wide content. Without one it

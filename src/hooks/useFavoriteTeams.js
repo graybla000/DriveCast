@@ -1,9 +1,9 @@
 import { useCallback } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 
-// Favourite team per sport: { baseball: "Seattle Mariners", football: "Seattle Seahawks" }
+// Favorite team per sport: { baseball: "Seattle Mariners", football: "Seattle Seahawks" }
 //
-// Keyed by sport rather than a single favourite, so each sport can have its own
+// Keyed by sport rather than a single favorite, so each sport can have its own
 // and all of them can surface at once — a Mariners row and a Seahawks row
 // together, rather than one overriding the other.
 const STORAGE_KEY = "drivecast:teams";

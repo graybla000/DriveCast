@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { AlertCircle, KeyRound } from "lucide-react";
 import HorizontalScroller from "@/components/HorizontalScroller";
-import { useYouTubeSearch } from "@/hooks/useYouTubeSearch";
+import { useYouTubeSearches } from "@/hooks/useYouTubeSearch";
 import { useAppStore } from "@/lib/AppStore";
 import { seededShuffle, seedFrom } from "@/lib/shuffle";
 
@@ -9,22 +9,33 @@ import { seededShuffle, seedFrom } from "@/lib/shuffle";
 //
 // Owns its own fetch so each row loads independently — one row hitting the quota
 // ceiling doesn't blank the whole screen.
-export default function VideoRow({ query, category = null, maxResults = 50, show = 20 }) {
+/**
+ * A row of videos for one or more queries.
+ *
+ * `queries` is a list because industry sectors produce one query each — "aerospace
+ * manufacturing" and "automotive manufacturing" run as separate searches and get
+ * merged here, which returns far sharper results than one combined query would.
+ */
+export default function VideoRow({ query, queries, category = null, maxResults = 50, show = 20 }) {
   const { startPlaying, fitsDrive, driveMinutes } = useAppStore();
+  const list = queries?.length ? queries : [query].filter(Boolean);
+
   // 50 is deliberate and free: a search costs 100 quota units regardless of how
   // many results it asks for, so requesting the maximum buys a much deeper pool
   // at no extra cost — which is what makes varying the selection possible.
-  const { videos: allVideos, isLoading, error, isMissingKey, isQuotaError } = useYouTubeSearch(query, {
-    category,
-    maxResults,
-  });
+  const { videos: allVideos, isLoading, error, isMissingKey, isQuotaError } = useYouTubeSearches(
+    list.map((q) => ({ query: q, category })),
+    { maxResults }
+  );
 
   // Shuffled per page load so the same query doesn't show the same handful every
   // time. YouTube's relevance order is stable, and the results are cached for
   // 12h, so without this you'd see identical videos on every visit.
   const shuffled = useMemo(
-    () => seededShuffle(allVideos, seedFrom(query)).slice(0, show),
-    [allVideos, query, show]
+    // Shuffling also does the mixing when several sectors are merged, so one
+    // sector's results don't all sit at the front of the row.
+    () => seededShuffle(allVideos, seedFrom(list.join("|"))).slice(0, show),
+    [allVideos, list.join("|"), show]
   );
 
   // A drive time acts as a ceiling: nothing longer than the trip is shown.

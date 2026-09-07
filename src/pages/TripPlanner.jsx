@@ -4,7 +4,7 @@ import {
   Loader2, ChevronLeft, ChevronRight, Car, AlertCircle, CreditCard, KeyRound,
 } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
-import { CATEGORIES, FEATURED_CATEGORY_IDS, queryForCategory } from "@/lib/contentData";
+import { CATEGORIES, FEATURED_CATEGORY_IDS, queriesForCategory } from "@/lib/contentData";
 import { useYouTubeSearches } from "@/hooks/useYouTubeSearch";
 import { mapLinks } from "@/hooks/useDriveTime";
 import { seededShuffle, seedFrom } from "@/lib/shuffle";
@@ -43,7 +43,7 @@ export default function TripPlanner() {
     saveTrip, trips, deleteTrip, startPlaying,
     drive, driveMinutes, driveLoading, driveError,
     lookupDrive, locateMe, isLocating, locationError,
-    preferredCategories,
+    preferredCategories, activeSectors,
   } = useAppStore();
 
   const [origin, setOrigin] = useState(drive?.origin ?? "");
@@ -118,7 +118,11 @@ export default function TripPlanner() {
   // 50 per topic costs no more than 8 — quota is per search, not per result — and
   // a deeper pool means better fills and more swap options per slot.
   const pool = useYouTubeSearches(
-    fetchIds.map((id) => ({ query: queryForCategory(id), category: id })),
+    // One query per interest per sector, so an aerospace focus narrows the trip's
+    // content the same way it narrows the Home rows.
+    fetchIds.flatMap((id) =>
+      queriesForCategory(id, activeSectors).map((query) => ({ query, category: id }))
+    ),
     { maxResults: 50 }
   );
 

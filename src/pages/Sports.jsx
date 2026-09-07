@@ -1,15 +1,15 @@
 import React, { useState } from "react";
-import { Trophy, Star, Headphones, Youtube } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Trophy, Star, Headphones, Youtube, ChevronRight } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
 import { SPORTS, youtubeQueryForSport, podcastQueryForSport } from "@/lib/sports";
 import { useFavoriteTeams } from "@/hooks/useFavoriteTeams";
-import FavoriteTeams from "@/components/FavoriteTeams";
 import VideoRow from "@/components/VideoRow";
 import EpisodeRow from "@/components/EpisodeRow";
 import { cn } from "@/lib/utils";
 
 /**
- * Sports, split by sport, with a favourite team per sport.
+ * Sports, split by sport, with a favorite team per sport.
  *
  * Setting a team changes that sport's search from league-wide to team-specific, so
  * a Mariners pick fills the baseball row with Mariners content. Each sport keeps
@@ -21,8 +21,9 @@ import { cn } from "@/lib/utils";
  * nobody asked for — the rest are opt-in via "show all".
  */
 export default function Sports() {
+  const navigate = useNavigate();
   const { isDriveActive } = useAppStore();
-  const { teamFor, setTeam, hasAnyTeam } = useFavoriteTeams();
+  const { teamFor, hasAnyTeam } = useFavoriteTeams();
   const [source, setSource] = useState(isDriveActive ? "audio" : "video");
   const [showAll, setShowAll] = useState(!hasAnyTeam);
 
@@ -36,7 +37,7 @@ export default function Sports() {
           <Trophy size={26} className="text-accent" /> Sports
         </h1>
         <p className="text-muted-foreground text-[13px] font-medium">
-          Pick your teams and the rows follow them
+          Follows the favorite teams set in your profile
         </p>
       </div>
 
@@ -58,10 +59,21 @@ export default function Sports() {
         ))}
       </div>
 
-      {/* Same component Profile renders, so the configuration can't drift apart.
-          All five are always shown, so a team can be set without loading that
-          sport's content first. */}
-      <FavoriteTeams />
+      {/* No pickers here — teams are configured in Profile, so there's exactly one
+          place to set them. This screen only shows what those picks produce. */}
+      {!hasAnyTeam && (
+        <button
+          onClick={() => navigate("/profile")}
+          className="w-full flex items-center justify-between px-4 h-12 rounded-2xl glass hairline active:scale-[0.98] transition-transform"
+        >
+          <span className="flex items-center gap-2 text-[13px] font-semibold text-muted-foreground">
+            <Star size={14} /> No favorite teams set
+          </span>
+          <span className="flex items-center gap-1 text-[12px] font-bold text-accent">
+            Set in Profile <ChevronRight size={13} />
+          </span>
+        </button>
+      )}
 
       {visible.map((sport) => {
         const team = teamFor(sport.id);
@@ -97,7 +109,7 @@ export default function Sports() {
 
       {visible.length === 0 && (
         <p className="text-[13px] text-muted-foreground font-medium text-center py-6">
-          Pick a team above, or show all sports.
+          Set a favorite team in your profile, or show all sports.
         </p>
       )}
     </div>

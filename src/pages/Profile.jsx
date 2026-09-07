@@ -6,7 +6,8 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { CATEGORIES } from "@/lib/contentData";
+import { CATEGORIES, SECTORS } from "@/lib/contentData";
+import { MAX_SECTOR_FETCHES } from "@/hooks/useSector";
 import FavoriteTeams from "@/components/FavoriteTeams";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +24,11 @@ export default function Profile() {
   const navigate = useNavigate();
   // Preferred categories come from the shared store now, so Home and the trip
   // planner can honour them instead of asking again.
-  const { theme, toggleTheme, favorites, trips, preferredCategories, togglePreferred } = useAppStore();
+  const {
+    theme, toggleTheme, favorites, trips,
+    preferredCategories, togglePreferred,
+    sectors, toggleSector, clearSectors,
+  } = useAppStore();
   const [kidFriendly, setKidFriendly] = useLocalStorage("drivecast:kidFriendly", false);
 
   return (
@@ -76,10 +81,48 @@ export default function Profile() {
         </div>
       </Section>
 
+      <Section title="Industry">
+        <div className="px-4 py-3">
+          <p className="text-[13px] font-semibold">Industry focus</p>
+          <p className="text-[11.5px] text-muted-foreground font-medium mb-2.5">
+            Narrows Manufacturing, CNC, Engineering, Business and AI to your industries
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {SECTORS.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => toggleSector(s.id)}
+                className={cn(
+                  "h-9 px-3.5 rounded-full text-[12px] font-semibold transition-all active:scale-95",
+                  sectors.includes(s.id) ? "bg-accent text-accent-foreground" : "bg-muted/50 text-muted-foreground"
+                )}
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+          {sectors.length > MAX_SECTOR_FETCHES && (
+            // Each sector is a separate search per row, so the rest are ignored
+            // rather than quietly multiplying the daily quota spend.
+            <p className="text-[11px] font-medium text-gold mt-2">
+              Using the first {MAX_SECTOR_FETCHES} — each industry is a separate search.
+            </p>
+          )}
+          {sectors.length > 0 && (
+            <button
+              onClick={clearSectors}
+              className="mt-2.5 text-[11.5px] font-bold text-muted-foreground active:scale-95 transition-transform"
+            >
+              Clear industry focus
+            </button>
+          )}
+        </div>
+      </Section>
+
       <Section title="Sports">
         <Row
           icon={<Trophy size={18} />}
-          label="Favourite teams"
+          label="Favorite teams"
           desc="Sets what the sports rows follow"
         >
           <button

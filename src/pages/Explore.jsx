@@ -2,8 +2,8 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SlidersHorizontal, X, RotateCw, Sparkles, ChevronLeft, ChevronRight, KeyRound, AlertCircle } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
-import { applyFilters, CATEGORIES, FEATURED_CATEGORY_IDS, queryForCategory, surpriseFrom } from "@/lib/contentData";
-import { useYouTubeSearch } from "@/hooks/useYouTubeSearch";
+import { applyFilters, CATEGORIES, FEATURED_CATEGORY_IDS, queriesForCategory, surpriseFrom } from "@/lib/contentData";
+import { useYouTubeSearches } from "@/hooks/useYouTubeSearch";
 import { seededShuffle, seedFrom } from "@/lib/shuffle";
 import RecommendationCard from "@/components/RecommendationCard";
 import FiltersSheet from "@/components/FiltersSheet";
@@ -14,7 +14,7 @@ const EMPTY_FILTERS = { category: [], duration: [] };
 
 export default function Explore() {
   const [params, setParams] = useSearchParams();
-  const { toggleFavorite, startPlaying, fitsDrive, driveMinutes } = useAppStore();
+  const { toggleFavorite, startPlaying, fitsDrive, driveMinutes, activeSectors } = useAppStore();
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [index, setIndex] = useState(0);
@@ -33,11 +33,12 @@ export default function Explore() {
   // One category at a time drives the search — a deck can only show one query's
   // results, and each extra query would cost another 100 quota units.
   const activeCategory = filters.category?.[0] ?? FEATURED_CATEGORY_IDS[0];
-  // 50 costs the same as 15 — quota is charged per search, not per result — so
-  // ask for the deepest pool available and vary which of it gets shown.
-  const { videos: fetched, isLoading, error, isMissingKey, isQuotaError } = useYouTubeSearch(
-    queryForCategory(activeCategory),
-    { category: activeCategory, maxResults: 50 }
+  // One search per selected industry sector, merged — a combined query would
+  // dilute rather than narrow. 50 results costs the same as 15, since quota is
+  // charged per search rather than per result.
+  const { videos: fetched, isLoading, error, isMissingKey, isQuotaError } = useYouTubeSearches(
+    queriesForCategory(activeCategory, activeSectors).map((q) => ({ query: q, category: activeCategory })),
+    { maxResults: 50 }
   );
 
   // Shuffled per page load, so the deck isn't the same cards in the same order
