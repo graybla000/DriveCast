@@ -10,7 +10,13 @@
 // tier does after a spell of inactivity).
 
 const CACHE_PREFIX = "drivecast:yt:";
-const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+// Matches the server's cache life. Variety comes from shuffling a deep pool per
+// session, not from re-fetching, so a longer life costs nothing in freshness.
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+// Always ask the server for a full page. Costs no extra quota (the price is per
+// search, not per result) and means one cache entry serves every caller.
+const FETCH_SIZE = 50;
 
 /** Failure kinds, mirroring the server's. */
 export const YT_ERROR = {
@@ -77,6 +83,23 @@ function cacheSet(key, data) {
   }
 }
 
+/**
+ * Drop entries written under the old `query|maxResults` key format.
+ *
+ * They can never be read again, and each holds up to 50 videos — left alone they
+ * would sit there until they expired, crowding a storage area that silently starts
+ * throwing once it's full.
+ */
+(function pruneLegacyCacheKeys() {
+  try {
+    for (const k of Object.keys(window.localStorage)) {
+      if (k.startsWith(CACHE_PREFIX) && k.includes("|")) window.localStorage.removeItem(k);
+    }
+  } catch {
+    // Private mode or no storage: nothing to prune.
+  }
+})();
+
 /** Wipe cached searches. Exposed so the UI can offer a manual refresh. */
 export function clearSearchCache() {
   try {
@@ -98,11 +121,18 @@ export async function searchVideos(query, { maxResults = 12, category = null } =
   const trimmed = (query ?? "").trim();
   if (!trimmed) return [];
 
-  const cacheKey = `${trimmed.toLowerCase()}|${maxResults}`;
+  // Keyed by query alone, and always fetched at full depth.
+  //
+  // The key used to include maxResults, so the same query asked for as 8 (a row)
+  // and 50 (a trip) were separate entries — two paid searches for one search's
+  // worth of content, since search.list costs 100 units whether it returns 5
+  // results or 50. One entry now serves every caller, sliced to what it wants.
+  const cacheKey = trimmed.toLowerCase();
+  const want = Math.min(FETCH_SIZE, Math.max(1, maxResults));
   const cached = cacheGet(cacheKey);
-  if (cached) return decorate(cached, category);
+  if (cached) return decorate(cached.slice(0, want), category);
 
-  const url = `/api/search?q=${encodeURIComponent(trimmed)}&maxResults=${maxResults}`;
+  const url = `/api/search?q=${encodeURIComponent(trimmed)}&maxResults=${FETCH_SIZE}`;
 
   let res;
   try {
@@ -125,5 +155,5 @@ export async function searchVideos(query, { maxResults = 12, category = null } =
 
   const videos = payload.videos ?? [];
   cacheSet(cacheKey, videos);
-  return decorate(videos, category);
+  return decorate(videos.slice(0, want), category);
 }

@@ -11,9 +11,24 @@
 const API = "https://www.googleapis.com/youtube/v3";
 
 // Cache is shared across all visitors, which is the point: quota is per-key, not
-// per-user, so one person's search warms it for everyone. 12h matches how
-// evergreen this content is.
-const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+// per-user, so one person's search warms it for everyone. A day matches how
+// evergreen this content is — variety comes from shuffling a deep pool, not from
+// re-fetching, so a longer life costs nothing in freshness.
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+// An empty result is usually a genuinely unlucky query, but it can also be a bad
+// moment upstream. Kept briefly so one of those can't hold a category empty for a
+// whole day — the same trap the podcast cache had.
+const EMPTY_CACHE_TTL_MS = 10 * 60 * 1000;
+
+// Every search is fetched at full depth regardless of what the caller asked for.
+//
+// search.list costs 100 units for 1 result or 50 — maxResults does not change the
+// price. So keying the cache by maxResults meant the identical query, requested as
+// 8 for a row and 50 for a trip, was paid for twice: 202 units for one search's
+// worth of content. Fetching 50 once and slicing per caller makes those the same
+// cache entry.
+const FETCH_SIZE = 50;
 const cache = new Map();
 
 /** Failure kinds the client maps to specific messages. */
@@ -110,16 +125,22 @@ export async function searchVideos(query, { maxResults = 12 } = {}) {
   const trimmed = (query ?? "").trim();
   if (!trimmed) return [];
 
-  const cacheKey = `${trimmed.toLowerCase()}|${maxResults}`;
+  const want = Math.min(FETCH_SIZE, Math.max(1, maxResults));
+
+  // Keyed by query alone — see FETCH_SIZE above for why maxResults must not be
+  // part of this.
+  const cacheKey = trimmed.toLowerCase();
   const hit = cache.get(cacheKey);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
+  if (hit && Date.now() - hit.at < (hit.data.length ? CACHE_TTL_MS : EMPTY_CACHE_TTL_MS)) {
+    return hit.data.slice(0, want);
+  }
 
   const search = await apiGet("search", {
     part: "snippet",
     type: "video",
     videoEmbeddable: "true",
     q: trimmed,
-    maxResults: String(Math.min(50, Math.max(1, maxResults))),
+    maxResults: String(FETCH_SIZE),
   });
 
   const ids = (search.items ?? []).map((i) => i.id?.videoId).filter(Boolean);
@@ -149,8 +170,9 @@ export async function searchVideos(query, { maxResults = 12 } = {}) {
     // Drop live streams and premieres, which report no usable duration.
     .filter((v) => v.duration > 0);
 
+  // The full fetch is cached; the caller gets only what it asked for.
   cache.set(cacheKey, { at: Date.now(), data: items });
-  return items;
+  return items.slice(0, want);
 }
 
 /**
