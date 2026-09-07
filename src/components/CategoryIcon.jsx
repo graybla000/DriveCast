@@ -1,14 +1,15 @@
 import React from "react";
 import {
   Landmark, Atom, Rocket, Briefcase, Trees, Compass, Gem, Cog, Factory, Drill,
-  Trophy, BrainCircuit, Hammer, Headphones, MapPin, TreePine, Building2, GraduationCap,
+  Trophy, BrainCircuit, Hammer, Baby, HandHeart,
+  Headphones, MapPin, TreePine, Building2, GraduationCap,
 } from "lucide-react";
 
 // Category `icon` names in contentData.js must appear here — an unmapped name
 // falls back to Compass silently rather than failing.
 const CATEGORY_ICONS = {
   Landmark, Atom, Rocket, Briefcase, Trees, Compass, Gem, Cog, Factory, Drill,
-  Trophy, BrainCircuit, Hammer,
+  Trophy, BrainCircuit, Hammer, Baby, HandHeart,
 };
 
 const TYPE_ICONS = {

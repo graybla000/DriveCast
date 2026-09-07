@@ -9,6 +9,7 @@ import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useDriveTime } from "@/hooks/useDriveTime";
 import { usePreferredCategories } from "@/hooks/usePreferredCategories";
 import { useSector } from "@/hooks/useSector";
+import { useSource } from "@/hooks/useSource";
 import { RECENT_SEARCHES_DEFAULT } from "@/lib/contentData";
 
 // Single source of truth shared across every screen. Swapping the hooks
@@ -23,6 +24,7 @@ export function AppStoreProvider({ children }) {
   const driveTime = useDriveTime();
   const prefs = usePreferredCategories();
   const sectorState = useSector();
+  const sourceState = useSource();
   const [recentSearches, setRecentSearches] = useLocalStorage("drivecast:recent", RECENT_SEARCHES_DEFAULT);
 
   // Real playback, backed by the YouTube IFrame player. Progress and duration
@@ -141,6 +143,9 @@ export function AppStoreProvider({ children }) {
     // Industry focus. Narrows the technical categories' searches; the others
     // ignore it.
     ...sectorState,
+    // Podcasts vs videos, shared so the trip planner builds routes from whichever
+    // the user picked rather than always reaching for video.
+    ...sourceState,
     // Current drive. `driveMinutes` is the ceiling every content surface filters
     // against, so a video longer than the trip is never suggested.
     drive: driveTime.drive,

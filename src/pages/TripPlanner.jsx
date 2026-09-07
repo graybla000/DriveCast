@@ -4,8 +4,9 @@ import {
   Loader2, ChevronLeft, ChevronRight, Car, AlertCircle, CreditCard, KeyRound,
 } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
-import { CATEGORIES, FEATURED_CATEGORY_IDS, queriesForCategory } from "@/lib/contentData";
+import { CATEGORIES, FEATURED_CATEGORY_IDS, queriesForCategory, podcastQueryForCategory } from "@/lib/contentData";
 import { useYouTubeSearches } from "@/hooks/useYouTubeSearch";
+import { usePodcastSearches } from "@/hooks/usePodcastSearch";
 import { mapLinks } from "@/hooks/useDriveTime";
 import { seededShuffle, seedFrom } from "@/lib/shuffle";
 import PlaceInput from "@/components/PlaceInput";
@@ -43,7 +44,7 @@ export default function TripPlanner() {
     saveTrip, trips, deleteTrip, startPlaying,
     drive, driveMinutes, driveLoading, driveError,
     lookupDrive, locateMe, isLocating, locationError,
-    preferredCategories, activeSectors,
+    preferredCategories, activeSectors, isAudio,
   } = useAppStore();
 
   const [origin, setOrigin] = useState(drive?.origin ?? "");
@@ -115,16 +116,31 @@ export default function TripPlanner() {
   }, [origin, destination, originPlaceId, destinationPlaceId]);
 
   const fetchIds = (interests.length ? interests : FEATURED_CATEGORY_IDS).slice(0, MAX_INTEREST_FETCHES);
-  // 50 per topic costs no more than 8 — quota is per search, not per result — and
-  // a deeper pool means better fills and more swap options per slot.
-  const pool = useYouTubeSearches(
+
+  /**
+   * The route is built from whichever source is selected app-wide.
+   *
+   * Previously this always used YouTube, so picking Podcasts on Home still gave a
+   * route full of videos — backwards for a drive, since video playback stops the
+   * moment the browser is backgrounded for navigation.
+   *
+   * Both hooks are called unconditionally, as hooks must be, and the unused one is
+   * disabled so it doesn't fetch. That matters for the video side especially:
+   * quota shouldn't be spent on content the user isn't looking at.
+   */
+  const videoPool = useYouTubeSearches(
     // One query per interest per sector, so an aerospace focus narrows the trip's
     // content the same way it narrows the Home rows.
     fetchIds.flatMap((id) =>
       queriesForCategory(id, activeSectors).map((query) => ({ query, category: id }))
     ),
-    { maxResults: 50 }
+    { maxResults: 50, enabled: !isAudio }
   );
+  const audioPool = usePodcastSearches(
+    fetchIds.map((id) => ({ query: podcastQueryForCategory(id), category: id })),
+    { maxResults: 40, enabled: isAudio }
+  );
+  const pool = isAudio ? audioPool : videoPool;
 
   // Shuffled per page load so planning the same trip twice doesn't produce the
   // identical route.

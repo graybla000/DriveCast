@@ -18,6 +18,14 @@ const ITUNES_SEARCH = "https://itunes.apple.com/search";
 
 // Feeds are large and change slowly; an hour is plenty and keeps this fast.
 const CACHE_TTL_MS = 60 * 60 * 1000;
+
+// Empty results get a much shorter life. An empty list is far more often a
+// transient failure — a network blip, or every feed in one query exceeding its
+// deadline at once — than a true "this topic has no podcasts". Storing that for a
+// full hour turned one bad moment into an hour of "No episodes found" on the
+// Engineering row, while the identical query answered fine on the next attempt.
+// Still cached briefly, so a genuinely empty search doesn't hammer the directory.
+const EMPTY_CACHE_TTL_MS = 60 * 1000;
 const cache = new Map();
 const CACHE_MAX = 200;
 
@@ -147,27 +155,40 @@ async function fetchEpisodes(show) {
 
   return asArray(channel.item)
     .map((item) => {
-      const enclosure = asArray(item.enclosure)[0];
-      const audioUrl = enclosure?.["@_url"] ?? null;
-      const type = enclosure?.["@_type"] ?? "";
+      // Per-item guard: feeds are third-party XML and a single malformed entry
+      // must not take down the whole search. One bad pubDate used to throw
+      // RangeError from toISOString() and fail the entire request with a 500.
+      try {
+        const enclosure = asArray(item.enclosure)[0];
+        const audioUrl = enclosure?.["@_url"] ?? null;
+        const type = enclosure?.["@_type"] ?? "";
 
-      // Only audio enclosures are playable; some feeds attach video or PDFs.
-      if (!audioUrl || (type && !type.startsWith("audio"))) return null;
+        // Only audio enclosures are playable; some feeds attach video or PDFs.
+        if (!audioUrl || (type && !type.startsWith("audio"))) return null;
 
-      const duration = parseEpisodeDuration(item["itunes:duration"]);
-      const id = item.guid?.["#text"] ?? item.guid ?? audioUrl;
+        const duration = parseEpisodeDuration(item["itunes:duration"]);
+        const id = item.guid?.["#text"] ?? item.guid ?? audioUrl;
 
-      return {
-        id: `pod_${String(id).replace(/[^\w-]/g, "").slice(-40)}`,
-        type: "episode",
-        title: cleanText(item.title) || "Untitled episode",
-        description: cleanText(item["itunes:summary"] ?? item.description).slice(0, 220),
-        host: show.showName || show.author,
-        audioUrl,
-        duration,
-        thumbnail: item["itunes:image"]?.["@_href"] ?? channelArt,
-        publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : null,
-      };
+        // Dates in the wild are frequently unparseable, so validate before
+        // formatting. A missing date is fine; a crash is not.
+        const published = item.pubDate ? new Date(item.pubDate) : null;
+        const publishedAt =
+          published && !Number.isNaN(published.getTime()) ? published.toISOString() : null;
+
+        return {
+          id: `pod_${String(id).replace(/[^\w-]/g, "").slice(-40)}`,
+          type: "episode",
+          title: cleanText(item.title) || "Untitled episode",
+          description: cleanText(item["itunes:summary"] ?? item.description).slice(0, 220),
+          host: show.showName || show.author,
+          audioUrl,
+          duration,
+          thumbnail: item["itunes:image"]?.["@_href"] ?? channelArt,
+          publishedAt,
+        };
+      } catch {
+        return null; // skip this episode, keep the rest of the feed
+      }
     })
     .filter(Boolean)
     // A duration is required: the whole point is fitting episodes to a drive,
@@ -188,7 +209,9 @@ export async function searchEpisodes(query, { maxResults = 12 } = {}) {
 
   const cacheKey = `${trimmed.toLowerCase()}|${maxResults}`;
   const hit = cache.get(cacheKey);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
+  if (hit && Date.now() - hit.at < (hit.data.length ? CACHE_TTL_MS : EMPTY_CACHE_TTL_MS)) {
+    return hit.data;
+  }
 
   const shows = await searchShows(trimmed, SHOWS_PER_QUERY);
   // In parallel: several feeds sequentially would be noticeably slow.

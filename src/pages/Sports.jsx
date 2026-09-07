@@ -22,9 +22,10 @@ import { cn } from "@/lib/utils";
  */
 export default function Sports() {
   const navigate = useNavigate();
-  const { isDriveActive } = useAppStore();
+  // Source is shared app-wide, so the choice made here or on Home is the one the
+  // trip planner uses too.
+  const { source, setSource } = useAppStore();
   const { teamFor, hasAnyTeam } = useFavoriteTeams();
-  const [source, setSource] = useState(isDriveActive ? "audio" : "video");
   const [showAll, setShowAll] = useState(!hasAnyTeam);
 
   const withTeams = SPORTS.filter((s) => teamFor(s.id));

@@ -122,6 +122,25 @@ export const CATEGORIES = [
     podcastQuery: "woodworking",
   },
   {
+    id: "fatherhood",
+    name: "Fatherhood",
+    icon: "Baby",
+    gradient: "from-blue-500/80 to-sky-700/80",
+    query: "fatherhood advice being a dad",
+    // Short and show-oriented — the podcast directory matches show titles.
+    podcastQuery: "fatherhood dad",
+  },
+  {
+    id: "motherhood",
+    name: "Motherhood",
+    icon: "HandHeart",
+    gradient: "from-pink-500/80 to-rose-700/80",
+    // "motherhood advice being a mom" drifted into mother-daughter therapy and
+    // sermon content; this phrasing returns actual motherhood material.
+    query: "motherhood parenting advice for moms",
+    podcastQuery: "motherhood mom",
+  },
+  {
     id: "ai",
     name: "AI",
     icon: "BrainCircuit",

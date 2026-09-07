@@ -26,8 +26,8 @@ const SEARCH_DEBOUNCE_MS = 600;
 export default function Home() {
   const navigate = useNavigate();
   const {
-    recentSearches, addRecentSearch, startPlaying, isDriveActive,
-    preferredCategories, activeSectors,
+    recentSearches, addRecentSearch, startPlaying,
+    preferredCategories, activeSectors, source, setSource,
   } = useAppStore();
 
   // Rows follow the preferences set in Profile, falling back to the featured set
@@ -37,7 +37,7 @@ export default function Home() {
     : FEATURED_CATEGORY_IDS;
   // Audio while a drive is on, because that's the only source that keeps playing
   // once the browser is backgrounded for navigation. Video otherwise.
-  const [source, setSource] = useState(isDriveActive ? "audio" : "video");
+  // Shared, not local: choosing Podcasts here has to reach the trip planner too.
   const [query, setQuery] = useState("");
   const [committedQuery, setCommittedQuery] = useState("");
   const [activePill, setActivePill] = useState(null);

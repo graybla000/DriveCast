@@ -38,13 +38,16 @@ export function useYouTubeSearch(query, { maxResults = 12, category = null, enab
  * `specs` is [{ query, category }] — keep it short, each distinct query is
  * another 100 units on a cache miss.
  */
-export function useYouTubeSearches(specs = [], { maxResults = 8 } = {}) {
+export function useYouTubeSearches(specs = [], { maxResults = 8, enabled = true } = {}) {
   const results = useQueries({
     queries: specs
       .filter((s) => s.query?.trim())
       .map((s) => ({
         queryKey: ["youtube", s.query.trim().toLowerCase(), maxResults, s.category ?? null],
         queryFn: () => searchVideos(s.query, { maxResults, category: s.category ?? null }),
+        // Lets a caller hold off entirely — quota shouldn't be spent fetching
+        // videos when the user has chosen podcasts.
+        enabled,
         staleTime: STALE_MS,
         gcTime: STALE_MS,
         retry: false,
