@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   MapPin, Clock, Sparkles, Save, Trash2, Check, Navigation, LocateFixed,
   Loader2, ChevronLeft, ChevronRight, Car, AlertCircle, CreditCard, KeyRound,
@@ -32,15 +32,6 @@ function coordsFrom(value) {
   return { lat, lng };
 }
 
-/**
- * Whether tapping a maps link hands off to a native app rather than opening a tab.
- *
- * A coarse pointer is the practical signal for "phone or tablet" here. It decides
- * only how the hand-off is sequenced, so a wrong guess degrades to the old
- * behaviour rather than breaking anything.
- */
-const isHandoffDevice = () => window.matchMedia?.("(pointer: coarse)").matches ?? false;
-
 const formatDrive = (minutes) => {
   if (!minutes) return "";
   const h = Math.floor(minutes / 60);
@@ -68,11 +59,14 @@ export default function TripPlanner() {
   // Slot index -> chosen video id, when the auto pick has been swapped out.
   const [swaps, setSwaps] = useState({});
   const [savedFlash, setSavedFlash] = useState(false);
-  // True for the moment between tapping a maps button and audio actually starting.
-  const [launching, setLaunching] = useState(false);
 
-  const toggleInterest = (id) =>
+  const toggleInterest = (id) => {
     setInterests((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    // Also the earliest real gesture most trips get. iOS won't touch the network
+    // for media until one happens, so this is what lets the buffering effect below
+    // work at all — by the time the maps button is tapped, audio is ready.
+    if (isAudio && queue[0]?.audioUrl) prewarmAudio(queue[0]);
+  };
 
   const useMyLocation = async () => {
     const coords = await locateMe();
@@ -259,31 +253,37 @@ export default function TripPlanner() {
    * would close the player we just started.
    */
   /**
-   * Buffering also gets a nudge on finger-down, which lands before the click.
+   * Start playback on finger-down, before the click that navigates.
    *
-   * Insurance for iOS, which may refuse to load media until a gesture has
-   * happened — in which case the effect above did nothing and this is the first
-   * chance to start. A no-op when the audio is already warm.
+   * Two constraints pull in opposite directions here:
+   *
+   *  - Audio must be genuinely playing before a maps app takes the foreground,
+   *    since a browser suspends a media element that goes hidden before playback
+   *    has begun. That was the original silence.
+   *  - The navigation must happen INSIDE the user's gesture. Holding it until
+   *    playback was confirmed and then setting location made iOS stop opening the
+   *    Google Maps app at all: a universal link only reaches the native app from a
+   *    user-initiated navigation, and anything after an await isn't one.
+   *
+   * So nothing is awaited. play() runs on pointerdown and the anchor navigates
+   * natively on the click ~150ms later — by which time prewarmed audio, measured
+   * at 0ms from play() to sound, is already playing. Guarded so the click handler
+   * can call it too (keyboard activation fires no pointer events) without
+   * restarting the episode.
    */
-  const warmOnTouch = () => {
-    if (isAudio && queue[0]?.audioUrl) prewarmAudio(queue[0]);
+  const startedRef = useRef(null);
+
+  const startAudioEarly = () => {
+    const first = queue[0];
+    if (!first || startedRef.current === first.id) return;
+    startedRef.current = first.id;
+    startPlaying(first);
   };
 
-  const startTrip = async (event, url) => {
+  const startTrip = () => {
     if (!queue.length) return;
+    startAudioEarly(); // no-op when pointerdown already did it
     saveTrip({ destination, origin: originLabel || origin, driveMinutes, interests, stops: queue });
-
-    if (!isHandoffDevice()) {
-      startPlaying(queue[0]);
-      return; // let the anchor open its new tab natively
-    }
-
-    event.preventDefault();
-    setLaunching(true);
-    // Called before the await, so it still counts as gesture-initiated.
-    await startPlaying(queue[0]);
-    setLaunching(false);
-    window.location.href = url;
   };
 
   const saveCurrent = () => {
@@ -491,37 +491,21 @@ export default function TripPlanner() {
                 href={links.google}
                 target="_blank"
                 rel="noreferrer"
-                onPointerDown={warmOnTouch}
-                onClick={(e) => startTrip(e, links.google)}
+                onPointerDown={startAudioEarly}
+                onClick={startTrip}
                 className="flex-1 h-14 rounded-2xl bg-gradient-to-r from-accent to-cyan-500 text-accent-foreground font-bold text-[14px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
               >
-                {launching ? (
-                  <>
-                    <Loader2 size={17} className="animate-spin" /> Starting audio…
-                  </>
-                ) : (
-                  <>
-                    <Navigation size={17} /> Google Maps
-                  </>
-                )}
+                <Navigation size={17} /> Google Maps
               </a>
               <a
                 href={links.apple}
                 target="_blank"
                 rel="noreferrer"
-                onPointerDown={warmOnTouch}
-                onClick={(e) => startTrip(e, links.apple)}
+                onPointerDown={startAudioEarly}
+                onClick={startTrip}
                 className="flex-1 h-14 rounded-2xl glass hairline font-bold text-[14px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
               >
-                {launching ? (
-                  <>
-                    <Loader2 size={17} className="animate-spin" /> Starting audio…
-                  </>
-                ) : (
-                  <>
-                    <MapPin size={17} /> Apple Maps
-                  </>
-                )}
+                <MapPin size={17} /> Apple Maps
               </a>
             </div>
             <p className="text-[11.5px] font-medium text-muted-foreground text-center">

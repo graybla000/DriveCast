@@ -2,6 +2,7 @@ import React from "react";
 import {
   Landmark, Atom, Rocket, Briefcase, Trees, Compass, Gem, Cog, Factory, Drill,
   Trophy, BrainCircuit, Hammer, Baby, HandHeart,
+  ChefHat, Wrench, ListChecks, AppWindow, Code2, Zap,
   Headphones, MapPin, TreePine, Building2, GraduationCap,
 } from "lucide-react";
 
@@ -10,6 +11,7 @@ import {
 const CATEGORY_ICONS = {
   Landmark, Atom, Rocket, Briefcase, Trees, Compass, Gem, Cog, Factory, Drill,
   Trophy, BrainCircuit, Hammer, Baby, HandHeart,
+  ChefHat, Wrench, ListChecks, AppWindow, Code2, Zap,
 };
 
 const TYPE_ICONS = {

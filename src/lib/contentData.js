@@ -152,6 +152,64 @@ export const CATEGORIES = [
     sectorAware: true,
     sectorBase: "artificial intelligence",
   },
+  {
+    id: "cooking",
+    name: "Cooking",
+    icon: "ChefHat",
+    gradient: "from-orange-500/80 to-red-700/80",
+    query: "cooking techniques recipes how to cook",
+    podcastQuery: "cooking",
+  },
+  {
+    id: "carrepair",
+    name: "Car Repair",
+    icon: "Wrench",
+    gradient: "from-slate-500/80 to-zinc-700/80",
+    query: "car repair maintenance how to fix",
+    podcastQuery: "car repair auto",
+  },
+  {
+    id: "everyday",
+    name: "Everyday Tasks",
+    icon: "ListChecks",
+    gradient: "from-teal-500/80 to-emerald-700/80",
+    // Concrete chores, deliberately. "household tasks life skills tutorial"
+    // returned children's curriculum — chore charts and independent-living
+    // lessons for kids — because "life skills" is a school-subject phrase.
+    query: "how to clean organize and fix things around the home",
+    // Unaffected by that drift: on the podcast side "life skills" finds adult
+    // shows (Life Skills That Matter), so the two sources use different wording.
+    podcastQuery: "life skills",
+  },
+  {
+    id: "software",
+    name: "Software",
+    icon: "AppWindow",
+    gradient: "from-sky-500/80 to-indigo-700/80",
+    // Deliberately the practice around code — architecture, systems, career — where
+    // the Coding category below is hands-on language work. Two rows would otherwise
+    // return much the same thing.
+    query: "software engineering architecture systems design explained",
+    podcastQuery: "software engineering",
+  },
+  {
+    id: "coding",
+    name: "Coding",
+    icon: "Code2",
+    gradient: "from-emerald-500/80 to-teal-700/80",
+    query: "programming tutorial learn to code",
+    // Just "coding": "programming coding" led with an AI/ML show, while this returns
+    // the actual learn-to-code shows (freeCodeCamp, Learn to Code in One Month).
+    podcastQuery: "coding",
+  },
+  {
+    id: "productivity",
+    name: "Productivity",
+    icon: "Zap",
+    gradient: "from-yellow-500/80 to-amber-700/80",
+    query: "productivity systems time management habits",
+    podcastQuery: "productivity",
+  },
 ];
 
 /**
