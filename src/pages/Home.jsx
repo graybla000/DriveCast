@@ -19,13 +19,6 @@ import VideoRow from "@/components/VideoRow";
 import EpisodeRow from "@/components/EpisodeRow";
 import SurpriseResultSheet from "@/components/SurpriseResultSheet";
 
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-}
-
 // Typing shouldn't fire a request per keystroke — each search costs 100 quota
 // units, so the query is only committed once typing pauses.
 const SEARCH_DEBOUNCE_MS = 600;
@@ -76,11 +69,6 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-muted-foreground text-[14px] font-medium">{greeting()} 👋</p>
-        <h1 className="text-display text-[32px] font-extrabold tracking-tight leading-tight">Discover</h1>
-      </div>
-
       <form onSubmit={handleSearchSubmit}>
         <SearchBar value={query} onChange={setQuery} />
       </form>
