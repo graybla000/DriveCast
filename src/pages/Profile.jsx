@@ -181,16 +181,21 @@ function Stat({ icon, value, label }) {
 }
 
 /**
- * `allowOverflow` is needed by any section containing a dropdown.
+ * `allowOverflow` is needed by any section containing a dropdown, and does two
+ * things — both required, and neither sufficient alone.
  *
- * overflow-hidden is here to clip children to the rounded corners, but it also
- * clips absolutely-positioned popovers: the team pickers appeared to show fewer
- * and fewer teams further down the list, because each one had less room left
- * before the section's bottom edge cut it off.
+ * 1. Drops overflow-hidden. It's normally there to clip children to the rounded
+ *    corners, but it also clips an absolutely-positioned popover, so pickers lower
+ *    down showed fewer rows as the section's bottom edge cut them off.
+ * 2. Raises the whole section above the sections that follow it. `glass` applies
+ *    backdrop-filter, which creates a stacking context — that traps the dropdown's
+ *    own z-index INSIDE this section, so a later sibling section painted over any
+ *    part of the dropdown extending past this one. The soccer picker, being last,
+ *    disappeared behind "Coming soon" entirely.
  */
 function Section({ title, children, allowOverflow = false }) {
   return (
-    <section>
+    <section className={cn(allowOverflow && "relative z-30")}>
       <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2 px-1">{title}</p>
       <div className={cn("glass hairline rounded-2xl", !allowOverflow && "overflow-hidden")}>{children}</div>
     </section>
