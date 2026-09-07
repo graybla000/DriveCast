@@ -101,6 +101,16 @@ export const CATEGORIES = [
     query: "sports analysis breakdown documentary",
     podcastQuery: "sports",
   },
+  {
+    id: "ai",
+    name: "AI",
+    icon: "BrainCircuit",
+    gradient: "from-violet-500/80 to-purple-700/80",
+    // Describes the field rather than a topic inside it — the mistake that made
+    // every Engineering result a GD&T video.
+    query: "artificial intelligence explained how it works",
+    podcastQuery: "artificial intelligence",
+  },
 ];
 
 export const getCategory = (id) => CATEGORIES.find((c) => c.id === id);

@@ -25,7 +25,13 @@ const SEARCH_DEBOUNCE_MS = 600;
 
 export default function Home() {
   const navigate = useNavigate();
-  const { recentSearches, addRecentSearch, startPlaying, isDriveActive } = useAppStore();
+  const { recentSearches, addRecentSearch, startPlaying, isDriveActive, preferredCategories } = useAppStore();
+
+  // Rows follow the preferences set in Profile, falling back to the featured set
+  // when none are chosen. Capped because every row is a live search.
+  const rowCategoryIds = preferredCategories.length
+    ? preferredCategories.slice(0, FEATURED_CATEGORY_IDS.length)
+    : FEATURED_CATEGORY_IDS;
   // Audio while a drive is on, because that's the only source that keeps playing
   // once the browser is backgrounded for navigation. Video otherwise.
   const [source, setSource] = useState(isDriveActive ? "audio" : "video");
@@ -107,7 +113,7 @@ export default function Home() {
 
           <SourceToggle source={source} onChange={setSource} />
 
-          {FEATURED_CATEGORY_IDS.map((id) => {
+          {rowCategoryIds.map((id) => {
             const category = getCategory(id);
             if (!category) return null;
             return (

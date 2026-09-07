@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { Trophy, Star, Headphones, Youtube } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
-import { SPORTS, teamsForSport, youtubeQueryForSport, podcastQueryForSport } from "@/lib/sports";
+import { SPORTS, youtubeQueryForSport, podcastQueryForSport } from "@/lib/sports";
 import { useFavoriteTeams } from "@/hooks/useFavoriteTeams";
-import TeamPicker from "@/components/TeamPicker";
+import FavoriteTeams from "@/components/FavoriteTeams";
 import VideoRow from "@/components/VideoRow";
 import EpisodeRow from "@/components/EpisodeRow";
 import { cn } from "@/lib/utils";
@@ -58,26 +58,10 @@ export default function Sports() {
         ))}
       </div>
 
-      {/* Team pickers, all five always shown so a team can be set without
-          loading that sport's content first. */}
-      <section className="glass hairline rounded-2xl p-4 space-y-3">
-        <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">
-          <Star size={13} /> Your teams
-        </h2>
-        {SPORTS.map((sport) => (
-          <div key={sport.id} className="flex items-center gap-3">
-            <span className="w-20 shrink-0 text-[13px] font-semibold">{sport.name}</span>
-            <div className="flex-1 min-w-0">
-              <TeamPicker
-                teams={teamsForSport(sport.id)}
-                value={teamFor(sport.id)}
-                onChange={(team) => setTeam(sport.id, team)}
-                placeholder={`Any ${sport.league} team`}
-              />
-            </div>
-          </div>
-        ))}
-      </section>
+      {/* Same component Profile renders, so the configuration can't drift apart.
+          All five are always shown, so a team can be set without loading that
+          sport's content first. */}
+      <FavoriteTeams />
 
       {visible.map((sport) => {
         const team = teamFor(sport.id);

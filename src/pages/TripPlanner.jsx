@@ -43,6 +43,7 @@ export default function TripPlanner() {
     saveTrip, trips, deleteTrip, startPlaying,
     drive, driveMinutes, driveLoading, driveError,
     lookupDrive, locateMe, isLocating, locationError,
+    preferredCategories,
   } = useAppStore();
 
   const [origin, setOrigin] = useState(drive?.origin ?? "");
@@ -50,7 +51,10 @@ export default function TripPlanner() {
   const [originPlaceId, setOriginPlaceId] = useState(null);
   const [destination, setDestination] = useState(drive?.destination ?? "");
   const [destinationPlaceId, setDestinationPlaceId] = useState(null);
-  const [interests, setInterests] = useState([]);
+  // Pre-selected from the preferences already set in Profile — asking for the
+  // same thing twice is the whole problem this avoids. Still editable per trip:
+  // the preference is a starting point, not a lock.
+  const [interests, setInterests] = useState(() => preferredCategories.slice(0, MAX_INTEREST_FETCHES));
   // Slot index -> chosen video id, when the auto pick has been swapped out.
   const [swaps, setSwaps] = useState({});
   const [savedFlash, setSavedFlash] = useState(false);

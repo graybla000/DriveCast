@@ -1,11 +1,13 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Sun, Moon, Bell, Mic, Download, Car, Sparkles, Crown, LogOut,
-  Baby, Heart, Map, Clock,
+  Baby, Heart, Map, Clock, Trophy, ChevronRight,
 } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { CATEGORIES } from "@/lib/contentData";
+import FavoriteTeams from "@/components/FavoriteTeams";
 import { cn } from "@/lib/utils";
 
 const FUTURE_FEATURES = [
@@ -18,12 +20,11 @@ const FUTURE_FEATURES = [
 ];
 
 export default function Profile() {
-  const { theme, toggleTheme, favorites, trips } = useAppStore();
+  const navigate = useNavigate();
+  // Preferred categories come from the shared store now, so Home and the trip
+  // planner can honour them instead of asking again.
+  const { theme, toggleTheme, favorites, trips, preferredCategories, togglePreferred } = useAppStore();
   const [kidFriendly, setKidFriendly] = useLocalStorage("drivecast:kidFriendly", false);
-  const [preferred, setPreferred] = useLocalStorage("drivecast:preferredCats", []);
-
-  const togglePreferred = (id) =>
-    setPreferred((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   return (
     <div className="space-y-6">
@@ -52,7 +53,10 @@ export default function Profile() {
           <Toggle on={kidFriendly} onClick={() => setKidFriendly(!kidFriendly)} />
         </Row>
         <div className="px-4 py-3">
-          <p className="text-[13px] font-semibold mb-2.5">Preferred categories</p>
+          <p className="text-[13px] font-semibold">Preferred categories</p>
+          <p className="text-[11.5px] text-muted-foreground font-medium mb-2.5">
+            Used for your Home rows and pre-selected when planning a trip
+          </p>
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map((c) => (
               <button
@@ -60,7 +64,9 @@ export default function Profile() {
                 onClick={() => togglePreferred(c.id)}
                 className={cn(
                   "h-9 px-3.5 rounded-full text-[12px] font-semibold transition-all active:scale-95",
-                  preferred.includes(c.id) ? "bg-accent text-accent-foreground" : "bg-muted/50 text-muted-foreground"
+                  preferredCategories.includes(c.id)
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-muted/50 text-muted-foreground"
                 )}
               >
                 {c.name}
@@ -68,6 +74,23 @@ export default function Profile() {
             ))}
           </div>
         </div>
+      </Section>
+
+      <Section title="Sports">
+        <Row
+          icon={<Trophy size={18} />}
+          label="Favourite teams"
+          desc="Sets what the sports rows follow"
+        >
+          <button
+            onClick={() => navigate("/sports")}
+            className="flex items-center gap-1 text-[12px] font-bold text-accent active:scale-95 transition-transform shrink-0"
+          >
+            Open <ChevronRight size={13} />
+          </button>
+        </Row>
+        {/* Same component the Sports screen uses, so both stay in step. */}
+        <FavoriteTeams bare />
       </Section>
 
       <Section title="Coming soon">
