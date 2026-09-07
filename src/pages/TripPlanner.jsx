@@ -4,7 +4,9 @@ import {
   Loader2, ChevronLeft, ChevronRight, Car, AlertCircle, CreditCard, KeyRound,
 } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
-import { CATEGORIES, FEATURED_CATEGORY_IDS, queriesForCategory, podcastQueryForCategory } from "@/lib/contentData";
+import {
+  CATEGORIES, FEATURED_CATEGORY_IDS, getCategory, queriesForCategory, podcastQueryForCategory,
+} from "@/lib/contentData";
 import { useYouTubeSearches } from "@/hooks/useYouTubeSearch";
 import { usePodcastSearches } from "@/hooks/usePodcastSearch";
 import { mapLinks } from "@/hooks/useDriveTime";
@@ -241,6 +243,28 @@ export default function TripPlanner() {
   const ready = Boolean(driveMinutes && links);
   const totalMin = queue.reduce((a, b) => a + b.duration, 0);
 
+  // The interests by name, since a message about an empty route should say which
+  // topics came back empty rather than making the user infer it.
+  const interestLabel = fetchIds.map((id) => getCategory(id)?.name ?? id).join(", ");
+
+  /**
+   * Why there's no route, in the user's terms.
+   *
+   * Worth distinguishing: an empty queue used to always read "nothing found short
+   * enough for this drive", which blamed the drive length even when the truth was
+   * that no search ran at all — the daily quota being spent with nothing cached for
+   * these interests. That sent you hunting for a shorter trip instead of a
+   * different topic, and left the maps buttons promising playback they couldn't
+   * deliver.
+   */
+  const emptyRouteReason = pool.error
+    ? pool.isQuotaError
+      ? `Today's searches are used up and nothing is saved for ${interestLabel}, so there's no route to build yet. Saved topics still work, and fresh searches resume when the quota resets.`
+      : `Couldn't load anything for ${interestLabel}: ${pool.error.message}`
+    : !poolVideos.length
+      ? `Nothing came back for ${interestLabel}. Try another interest.`
+      : `Nothing found short enough for a ${formatDrive(driveMinutes)} drive. Try another interest.`;
+
   /**
    * Clicking a map link starts the first item AND opens navigation.
    *
@@ -453,9 +477,7 @@ export default function TripPlanner() {
               {[0, 1, 2].map((i) => <div key={i} className="h-[76px] rounded-2xl bg-muted animate-pulse" />)}
             </div>
           ) : queue.length === 0 ? (
-            <p className="text-[13px] text-muted-foreground font-medium">
-              Nothing found short enough for a {formatDrive(driveMinutes)} drive. Try another interest.
-            </p>
+            <p className="text-[13px] text-muted-foreground font-medium">{emptyRouteReason}</p>
           ) : (
             <div className="space-y-2.5">
               {queue.map((item, i) => {
@@ -535,8 +557,14 @@ export default function TripPlanner() {
                 <MapPin size={17} /> Apple Maps
               </a>
             </div>
+            {/* The maps links still work with an empty route — navigation is useful
+                on its own — but they mustn't claim to start something that doesn't
+                exist. Saying so here is what turns "the player won't play" into
+                "there's nothing queued". */}
             <p className="text-[11.5px] font-medium text-muted-foreground text-center">
-              Opens navigation and starts {queue.length ? `“${queue[0].title.slice(0, 40)}…”` : "your route"}
+              {queue.length
+                ? `Opens navigation and starts “${queue[0].title.slice(0, 40)}…”`
+                : "Opens navigation only — there's nothing queued to play."}
             </p>
           </>
         ) : (
