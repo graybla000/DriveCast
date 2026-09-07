@@ -110,6 +110,16 @@ export const CATEGORIES = [
     podcastQuery: "sports",
   },
   {
+    id: "woodworking",
+    name: "DIY Woodworking",
+    icon: "Hammer",
+    gradient: "from-amber-600/80 to-yellow-800/80",
+    query: "woodworking project build how to",
+    // Short and show-oriented: the podcast directory matches show titles, so
+    // "woodworking" finds the actual shows where a longer phrase wouldn't.
+    podcastQuery: "woodworking",
+  },
+  {
     id: "ai",
     name: "AI",
     icon: "BrainCircuit",

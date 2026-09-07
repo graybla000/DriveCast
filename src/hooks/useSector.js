@@ -13,8 +13,11 @@ import { useLocalStorage } from "./useLocalStorage";
 // why the number used for fetching is capped (see MAX_SECTOR_FETCHES).
 const STORAGE_KEY = "drivecast:sectors";
 
-// Bounds quota: with 3 Home rows, 2 sectors is already 6 searches on a cold load.
-export const MAX_SECTOR_FETCHES = 2;
+// Bounds quota. Each sector is a separate search per sector-aware row, so with 3
+// Home rows this is 9 searches on a cold load (~909 of the 10,000 daily units).
+// The 12h cache means that's per half-day rather than per visit, but the ceiling
+// is what stops a longer list from quietly eating the day's allowance.
+export const MAX_SECTOR_FETCHES = 3;
 
 export function useSector() {
   const [stored, setStored] = useLocalStorage(STORAGE_KEY, []);
