@@ -95,6 +95,48 @@ build-time check for this — see "Verifying the key stays server-side" below.
   real durations and drop videos that can't be embedded — they fail silently in
   the player otherwise.
 
+### When the quota is gone
+
+Running out is normal, not an error state, so nothing shows a warning if it can
+avoid one. Both caches keep expired entries and fall back to them when a search
+fails — quota spent, server asleep, no connection — and only a query with nothing
+cached at all shows the "Daily quota reached" card. This is deliberately silent:
+there is no "cached" badge, and no UI code is involved, because
+`searchVideos` resolving with stale data is indistinguishable from a live result.
+
+Two things to leave alone:
+
+- Serving a stale entry must **not** refresh its timestamp. It has to stay
+  expired, or the app stops trying live searches after the quota resets.
+- The client's `pruneCache` is now the only thing that deletes entries (at 30
+  days). Reads must not delete on expiry — that would throw the copy away exactly
+  when it becomes useful.
+
+A spent daily quota returns **HTTP 429 / `rateLimitExceeded` / RESOURCE_EXHAUSTED**,
+not the documented `quotaExceeded`. Match all of them; matching only the
+documented reason silently mislabels every quota failure as "Search failed".
+
+### Pre-warming the server from a browser's cache
+
+The server cache is in-memory, so a restart on a day whose quota is already spent
+leaves it with nothing to serve. `server/cache-seed.json` (optional, git-tracked)
+pre-warms it at boot. Export it from DevTools on a browser with a warm cache:
+
+```js
+copy(JSON.stringify(Object.fromEntries(
+  Object.keys(localStorage)
+    .filter((k) => k.startsWith('drivecast:yt:'))
+    .map((k) => [k, JSON.parse(localStorage[k])])
+), null, 2))
+```
+
+Paste into `server/cache-seed.json` and commit — it must be in the repo to reach
+Render, whose filesystem doesn't survive a deploy. The loader strips the
+`drivecast:yt:` prefix and stamps every entry as already expired, so a seeded
+query is only ever a fallback and never suppresses a live search. Expect a few
+hundred KB; it's public YouTube metadata, so nothing sensitive, but don't let it
+grow unbounded.
+
 ### Verifying the key stays server-side
 
 `npm run build` runs `scripts/check-no-secrets.mjs` afterwards, which fails the

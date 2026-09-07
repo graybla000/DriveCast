@@ -14,6 +14,17 @@ const CACHE_PREFIX = "drivecast:yt:";
 // session, not from re-fetching, so a longer life costs nothing in freshness.
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
+// How long an expired entry is kept around *after* it stops counting as fresh.
+// Past its TTL it can no longer answer a normal read, but it is still the
+// fallback when a search fails, which is most of what makes a spent quota
+// survivable. Only after this does it become genuine dead weight.
+const STALE_KEEP_MS = 30 * 24 * 60 * 60 * 1000;
+
+// Results the server itself served from *its* expired cache are held for minutes,
+// not a day. Caching a stale echo for the full TTL would pin the app to a day-old
+// view for another whole day, even though quota resets at midnight PT.
+const STALE_ECHO_TTL_MS = 30 * 60 * 1000;
+
 // Always ask the server for a full page. Costs no extra quota (the price is per
 // search, not per result) and means one cache entry serves every caller.
 const FETCH_SIZE = 50;
@@ -60,40 +71,57 @@ export function gradientFor(videoId = "") {
 
 /* ---------------------------------------------------------------- caching -- */
 
-function cacheGet(key) {
+/**
+ * Read an entry without judging its age — `{ at, data, stale }` or null.
+ *
+ * Expiry deliberately doesn't delete anything here. An expired entry is exactly
+ * what a failed search falls back on, and dropping it on read would throw away
+ * the copy at the moment it becomes most useful. `pruneCache` below does the
+ * eventual clearing out.
+ */
+function cacheEntry(key) {
   try {
     const raw = window.localStorage.getItem(CACHE_PREFIX + key);
     if (!raw) return null;
-    const { at, data } = JSON.parse(raw);
-    if (Date.now() - at > CACHE_TTL_MS) {
-      window.localStorage.removeItem(CACHE_PREFIX + key);
-      return null;
-    }
-    return data;
+    const { at, data, stale = false } = JSON.parse(raw);
+    return Array.isArray(data) ? { at, data, stale } : null;
   } catch {
     return null;
   }
 }
 
-function cacheSet(key, data) {
+const isFresh = (entry) => Date.now() - entry.at < (entry.stale ? STALE_ECHO_TTL_MS : CACHE_TTL_MS);
+
+function cacheSet(key, data, { stale = false } = {}) {
   try {
-    window.localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ at: Date.now(), data }));
+    window.localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ at: Date.now(), data, stale }));
   } catch {
     // Quota-full or private mode: caching is an optimisation, not a requirement.
   }
 }
 
 /**
- * Drop entries written under the old `query|maxResults` key format.
+ * Clear out entries that can no longer be of use to anyone:
  *
- * They can never be read again, and each holds up to 50 videos — left alone they
- * would sit there until they expired, crowding a storage area that silently starts
- * throwing once it's full.
+ * - those written under the old `query|maxResults` key format, which can never be
+ *   read again;
+ * - those older than `STALE_KEEP_MS`, too old even to be a fallback.
+ *
+ * Each holds up to 50 videos, so left alone they crowd a storage area that
+ * silently starts throwing once it's full. This runs on load because nothing
+ * else reads a key it will never ask for again.
  */
-(function pruneLegacyCacheKeys() {
+(function pruneCache() {
   try {
+    const now = Date.now();
     for (const k of Object.keys(window.localStorage)) {
-      if (k.startsWith(CACHE_PREFIX) && k.includes("|")) window.localStorage.removeItem(k);
+      if (!k.startsWith(CACHE_PREFIX)) continue;
+      if (k.includes("|")) {
+        window.localStorage.removeItem(k);
+        continue;
+      }
+      const entry = cacheEntry(k.slice(CACHE_PREFIX.length));
+      if (!entry || now - entry.at > STALE_KEEP_MS) window.localStorage.removeItem(k);
     }
   } catch {
     // Private mode or no storage: nothing to prune.
@@ -129,8 +157,17 @@ export async function searchVideos(query, { maxResults = 12, category = null } =
   // results or 50. One entry now serves every caller, sliced to what it wants.
   const cacheKey = trimmed.toLowerCase();
   const want = Math.min(FETCH_SIZE, Math.max(1, maxResults));
-  const cached = cacheGet(cacheKey);
-  if (cached) return decorate(cached.slice(0, want), category);
+  const entry = cacheEntry(cacheKey);
+  if (entry && isFresh(entry)) return decorate(entry.data.slice(0, want), category);
+
+  // An expired entry is still the best answer available if the search below fails
+  // — a spent daily quota, a sleeping server, no connection. Falling back to it is
+  // what keeps the screen full of content instead of a column of error cards, so
+  // every failure path goes through here rather than throwing directly.
+  const orStale = (err) => {
+    if (entry?.data.length) return decorate(entry.data.slice(0, want), category);
+    throw err;
+  };
 
   const url = `/api/search?q=${encodeURIComponent(trimmed)}&maxResults=${FETCH_SIZE}`;
 
@@ -138,22 +175,26 @@ export async function searchVideos(query, { maxResults = 12, category = null } =
   try {
     res = await fetch(url);
   } catch (err) {
-    throw new YouTubeError(YT_ERROR.NETWORK, `Couldn't reach the search service: ${err.message}`);
+    return orStale(new YouTubeError(YT_ERROR.NETWORK, `Couldn't reach the search service: ${err.message}`));
   }
 
   let payload;
   try {
     payload = await res.json();
   } catch {
-    throw new YouTubeError(YT_ERROR.UNKNOWN, `Search service returned a non-JSON response (${res.status}).`);
+    return orStale(
+      new YouTubeError(YT_ERROR.UNKNOWN, `Search service returned a non-JSON response (${res.status}).`)
+    );
   }
 
   if (!res.ok || payload.error) {
     const { kind = YT_ERROR.UNKNOWN, message = `Search failed (${res.status}).` } = payload.error ?? {};
-    throw new YouTubeError(kind, message);
+    return orStale(new YouTubeError(kind, message));
   }
 
   const videos = payload.videos ?? [];
-  cacheSet(cacheKey, videos);
+  // `payload.stale` means the server answered from its own expired cache, so this
+  // isn't a live result and shouldn't be held like one — see STALE_ECHO_TTL_MS.
+  cacheSet(cacheKey, videos, { stale: payload.stale === true });
   return decorate(videos.slice(0, want), category);
 }

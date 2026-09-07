@@ -8,6 +8,8 @@
 // The same module backs both the production Express server and the Vite dev
 // middleware, so dev and prod hit identical code.
 
+import { readFileSync } from "node:fs";
+
 const API = "https://www.googleapis.com/youtube/v3";
 
 // Cache is shared across all visitors, which is the point: quota is per-key, not
@@ -30,6 +32,56 @@ const EMPTY_CACHE_TTL_MS = 10 * 60 * 1000;
 // cache entry.
 const FETCH_SIZE = 50;
 const cache = new Map();
+
+/* -------------------------------------------------------------- seeding -- */
+
+// A committed snapshot of a browser's own cache, used to pre-warm the one above.
+//
+// The live cache is in-memory, so every restart starts empty — and a restart on a
+// day whose quota is already spent leaves it empty, with nothing to fall back on
+// and an error card in every row. A snapshot exported from a browser that does
+// have results gives the server something to answer with from its first request,
+// on any device, without spending a unit.
+//
+// Export it from DevTools on a browser with a warm cache (see AGENTS.md), paste
+// into server/cache-seed.json, and commit — it has to be in the repo to reach
+// Render, whose filesystem doesn't persist across deploys.
+const SEED_URL = new URL("./cache-seed.json", import.meta.url);
+
+function loadSeed() {
+  let raw;
+  try {
+    raw = readFileSync(SEED_URL, "utf8");
+  } catch {
+    return 0; // No seed committed. Entirely normal.
+  }
+
+  try {
+    let loaded = 0;
+    for (const [key, value] of Object.entries(JSON.parse(raw))) {
+      // Exports keep the client's storage prefix; cache keys are the bare query.
+      const cacheKey = key.replace(/^drivecast:yt:/, "").trim().toLowerCase();
+      const data = Array.isArray(value) ? value : value?.data;
+      if (!cacheKey || !Array.isArray(data)) continue;
+      const items = data.filter((v) => v?.id);
+      if (!items.length) continue;
+
+      // Deliberately stamped as already expired: the seed is a floor, not a
+      // substitute. A live search is still tried first whenever quota allows, and
+      // this only answers when that fails.
+      cache.set(cacheKey, { at: 0, data: items });
+      loaded++;
+    }
+    return loaded;
+  } catch (err) {
+    // Malformed seed shouldn't stop the server booting — it just isn't used.
+    console.warn(`[search] ignoring unreadable cache-seed.json: ${err.message}`);
+    return 0;
+  }
+}
+
+const seededQueries = loadSeed();
+if (seededQueries) console.log(`[search] pre-warmed ${seededQueries} queries from cache-seed.json`);
 
 /** Failure kinds the client maps to specific messages. */
 export const ERROR_KIND = {
@@ -88,19 +140,32 @@ async function apiGet(path, params) {
 
   if (!res.ok) {
     let reason = "";
+    let status = "";
     let message = `YouTube API error ${res.status}`;
     try {
       const body = await res.json();
       reason = body?.error?.errors?.[0]?.reason ?? "";
+      status = body?.error?.status ?? "";
       message = body?.error?.message ?? message;
     } catch {
       /* fall back to the status-based message */
     }
 
-    if (reason === "quotaExceeded" || reason === "dailyLimitExceeded") {
+    // A spent daily quota arrives in more shapes than the documented
+    // `quotaExceeded`: what it actually returns is HTTP 429 with
+    // `rateLimitExceeded` and status RESOURCE_EXHAUSTED. Matching only the
+    // documented reason classified this app's single most common failure as a
+    // generic "Search failed", in alarming red, with no mention of quota.
+    if (
+      reason === "quotaExceeded" ||
+      reason === "dailyLimitExceeded" ||
+      reason === "rateLimitExceeded" ||
+      status === "RESOURCE_EXHAUSTED" ||
+      res.status === 429
+    ) {
       throw new SearchError(
         ERROR_KIND.QUOTA,
-        "YouTube's daily search quota is used up. Cached results still work; fresh searches resume tomorrow.",
+        "YouTube's search quota is used up. Saved results still work; fresh searches resume when the quota resets (midnight Pacific).",
         429
       );
     }
@@ -114,7 +179,8 @@ async function apiGet(path, params) {
 }
 
 /**
- * Search YouTube, returning items ready for the UI.
+ * Search YouTube, returning `{ videos, stale }` — items ready for the UI, and
+ * whether they came from an expired cache entry because the live search failed.
  *
  * Costs 101 quota units on a cache miss (100 for search.list + 1 for
  * videos.list), 0 on a hit. The second call is not optional: search.list returns
@@ -123,7 +189,7 @@ async function apiGet(path, params) {
  */
 export async function searchVideos(query, { maxResults = 12 } = {}) {
   const trimmed = (query ?? "").trim();
-  if (!trimmed) return [];
+  if (!trimmed) return { videos: [], stale: false };
 
   const want = Math.min(FETCH_SIZE, Math.max(1, maxResults));
 
@@ -132,47 +198,56 @@ export async function searchVideos(query, { maxResults = 12 } = {}) {
   const cacheKey = trimmed.toLowerCase();
   const hit = cache.get(cacheKey);
   if (hit && Date.now() - hit.at < (hit.data.length ? CACHE_TTL_MS : EMPTY_CACHE_TTL_MS)) {
-    return hit.data.slice(0, want);
+    return { videos: hit.data.slice(0, want), stale: false };
   }
 
-  const search = await apiGet("search", {
-    part: "snippet",
-    type: "video",
-    videoEmbeddable: "true",
-    q: trimmed,
-    maxResults: String(FETCH_SIZE),
-  });
+  try {
+    const search = await apiGet("search", {
+      part: "snippet",
+      type: "video",
+      videoEmbeddable: "true",
+      q: trimmed,
+      maxResults: String(FETCH_SIZE),
+    });
 
-  const ids = (search.items ?? []).map((i) => i.id?.videoId).filter(Boolean);
-  if (!ids.length) {
-    cache.set(cacheKey, { at: Date.now(), data: [] });
-    return [];
+    const ids = (search.items ?? []).map((i) => i.id?.videoId).filter(Boolean);
+    if (!ids.length) {
+      cache.set(cacheKey, { at: Date.now(), data: [] });
+      return { videos: [], stale: false };
+    }
+
+    const details = await apiGet("videos", {
+      part: "contentDetails,status,snippet",
+      id: ids.join(","),
+    });
+
+    const items = (details.items ?? [])
+      .filter((v) => v.status?.embeddable !== false && v.status?.privacyStatus === "public")
+      .map((v) => ({
+        id: v.id,
+        youtubeId: v.id,
+        type: "lesson",
+        title: v.snippet?.title ?? "Untitled",
+        description: v.snippet?.description?.split("\n")[0] ?? "",
+        host: v.snippet?.channelTitle ?? "",
+        duration: parseDurationToMinutes(v.contentDetails?.duration),
+        thumbnail: thumbnailUrl(v.id),
+        publishedAt: v.snippet?.publishedAt ?? null,
+      }))
+      // Drop live streams and premieres, which report no usable duration.
+      .filter((v) => v.duration > 0);
+
+    // The full fetch is cached; the caller gets only what it asked for.
+    cache.set(cacheKey, { at: Date.now(), data: items });
+    return { videos: items.slice(0, want), stale: false };
+  } catch (err) {
+    // Expired entries are never evicted, precisely so they can answer here: once
+    // the daily quota is gone, yesterday's results beat an error card on every
+    // row. `at` is deliberately left untouched — the entry has to stay expired so
+    // the next request tries live again after the quota resets.
+    if (hit?.data?.length) return { videos: hit.data.slice(0, want), stale: true };
+    throw err;
   }
-
-  const details = await apiGet("videos", {
-    part: "contentDetails,status,snippet",
-    id: ids.join(","),
-  });
-
-  const items = (details.items ?? [])
-    .filter((v) => v.status?.embeddable !== false && v.status?.privacyStatus === "public")
-    .map((v) => ({
-      id: v.id,
-      youtubeId: v.id,
-      type: "lesson",
-      title: v.snippet?.title ?? "Untitled",
-      description: v.snippet?.description?.split("\n")[0] ?? "",
-      host: v.snippet?.channelTitle ?? "",
-      duration: parseDurationToMinutes(v.contentDetails?.duration),
-      thumbnail: thumbnailUrl(v.id),
-      publishedAt: v.snippet?.publishedAt ?? null,
-    }))
-    // Drop live streams and premieres, which report no usable duration.
-    .filter((v) => v.duration > 0);
-
-  // The full fetch is cached; the caller gets only what it asked for.
-  cache.set(cacheKey, { at: Date.now(), data: items });
-  return items.slice(0, want);
 }
 
 /**
@@ -185,8 +260,10 @@ export async function handleSearchRequest(requestUrl) {
   const maxResults = Number(url.searchParams.get("maxResults")) || 12;
 
   try {
-    const videos = await searchVideos(query, { maxResults });
-    return { status: 200, body: { videos } };
+    const { videos, stale } = await searchVideos(query, { maxResults });
+    // `stale` tells the client these are last-known results, not a live search,
+    // so it can keep them briefly rather than for the full day.
+    return { status: 200, body: { videos, stale } };
   } catch (err) {
     if (err instanceof SearchError) {
       return { status: err.status, body: { error: { kind: err.kind, message: err.message } } };
