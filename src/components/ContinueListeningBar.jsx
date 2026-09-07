@@ -91,10 +91,10 @@ export default function ContinueListeningBar() {
               className={cn(
                 "relative shrink-0 bg-black overflow-hidden [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:block",
                 expanded
-                  // Centred a little below the midpoint rather than dead centre:
-                  // at 50% it sits visually high, since the eye reads the sticky
-                  // header and bar above it as part of the layout.
-                  ? "fixed inset-x-3 top-[56%] -translate-y-1/2 z-[60] aspect-video rounded-2xl shadow-2xl shadow-black/80 ring-1 ring-white/15 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[min(92vw,900px)]"
+                  // Flush to the top of the window. env(safe-area-inset-top)
+                  // rather than a plain 0 so it clears a notch or status bar
+                  // instead of hiding behind one.
+                  ? "fixed inset-x-3 top-[env(safe-area-inset-top,0px)] z-[60] aspect-video rounded-2xl shadow-2xl shadow-black/80 ring-1 ring-white/15 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[min(92vw,900px)]"
                   : "w-[92px] h-[52px] rounded-lg"
               )}
             >
