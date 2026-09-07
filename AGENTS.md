@@ -137,6 +137,21 @@ query is only ever a fallback and never suppresses a live search. Expect a few
 hundred KB; it's public YouTube metadata, so nothing sensitive, but don't let it
 grow unbounded.
 
+Two less manual ways to fill it:
+
+- `node scripts/warm-cache.mjs` walks every category query against a running
+  server and merges the results into the seed. Plain categories are ~2,100 quota
+  units; `--all` adds the sector variants for ~7,200 of the daily 10,000. It stops
+  at the first quota error and skips queries the cache already answers.
+- `server/seedPersist.js` commits newly warmed queries back to this file from the
+  running server, so coverage grows from real browsing and survives spin-downs.
+  It is **inert unless `GITHUB_TOKEN` is set** — local dev never commits anything.
+  On Render, add `GITHUB_TOKEN` (fine-grained, Contents: read+write on this repo
+  and nothing else); `SEED_REPO`, `SEED_BRANCH`, `SEED_PATH` and
+  `SEED_COMMIT_INTERVAL_HOURS` override the defaults. Only *new* keys trigger a
+  commit — refreshing an existing query would mean a commit every pass forever,
+  for content that is evergreen by design.
+
 ### Verifying the key stays server-side
 
 `npm run build` runs `scripts/check-no-secrets.mjs` afterwards, which fails the

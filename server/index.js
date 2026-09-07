@@ -6,7 +6,8 @@ import express from "express";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { handleSearchRequest } from "./youtubeSearch.js";
+import { cacheSnapshot, handleSearchRequest } from "./youtubeSearch.js";
+import { startSeedPersistence } from "./seedPersist.js";
 import { handleRouteRequest } from "./driveTime.js";
 import { handlePlacesRequest } from "./places.js";
 import { handlePodcastRequest } from "./podcasts.js";
@@ -68,4 +69,7 @@ app.listen(PORT, () => {
   if (!process.env.YOUTUBE_API_KEY) {
     console.warn("[server] YOUTUBE_API_KEY is not set — search will return a configuration error.");
   }
+  // Production only: the dev server mounts the search handler as Vite middleware
+  // and shouldn't be committing anything to the repo while you work.
+  startSeedPersistence(cacheSnapshot);
 });

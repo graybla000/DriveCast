@@ -83,6 +83,23 @@ function loadSeed() {
 const seededQueries = loadSeed();
 if (seededQueries) console.log(`[search] pre-warmed ${seededQueries} queries from cache-seed.json`);
 
+/**
+ * The live-warmed part of the cache, in the seed file's own format.
+ *
+ * Only entries fetched by this process: seeded ones carry `at: 0` and are already
+ * in the committed file, so including them would just rewrite what's there. This
+ * is what `seedPersist.js` commits back, which is how coverage grows from real
+ * browsing instead of only from a manual export.
+ */
+export function cacheSnapshot() {
+  const out = {};
+  for (const [key, entry] of cache.entries()) {
+    if (!entry?.at || !entry.data?.length) continue;
+    out[`drivecast:yt:${key}`] = { at: entry.at, stale: false, data: entry.data };
+  }
+  return out;
+}
+
 /** Failure kinds the client maps to specific messages. */
 export const ERROR_KIND = {
   NO_KEY: "no_key",
