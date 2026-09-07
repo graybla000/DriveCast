@@ -4,6 +4,7 @@ import { SlidersHorizontal, X, RotateCw, Sparkles, ChevronLeft, ChevronRight, Ke
 import { useAppStore } from "@/lib/AppStore";
 import { applyFilters, CATEGORIES, FEATURED_CATEGORY_IDS, queryForCategory, surpriseFrom } from "@/lib/contentData";
 import { useYouTubeSearch } from "@/hooks/useYouTubeSearch";
+import { seededShuffle, seedFrom } from "@/lib/shuffle";
 import RecommendationCard from "@/components/RecommendationCard";
 import FiltersSheet from "@/components/FiltersSheet";
 import SurpriseResultSheet from "@/components/SurpriseResultSheet";
@@ -32,9 +33,18 @@ export default function Explore() {
   // One category at a time drives the search — a deck can only show one query's
   // results, and each extra query would cost another 100 quota units.
   const activeCategory = filters.category?.[0] ?? FEATURED_CATEGORY_IDS[0];
-  const { videos, isLoading, error, isMissingKey, isQuotaError } = useYouTubeSearch(
+  // 50 costs the same as 15 — quota is charged per search, not per result — so
+  // ask for the deepest pool available and vary which of it gets shown.
+  const { videos: fetched, isLoading, error, isMissingKey, isQuotaError } = useYouTubeSearch(
     queryForCategory(activeCategory),
-    { category: activeCategory, maxResults: 15 }
+    { category: activeCategory, maxResults: 50 }
+  );
+
+  // Shuffled per page load, so the deck isn't the same cards in the same order
+  // every visit.
+  const videos = useMemo(
+    () => seededShuffle(fetched, seedFrom(activeCategory)),
+    [fetched, activeCategory]
   );
 
   // Duration filtering happens client-side on whatever the API returned, then

@@ -1,23 +1,35 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { AlertCircle, KeyRound } from "lucide-react";
 import HorizontalScroller from "@/components/HorizontalScroller";
 import { useYouTubeSearch } from "@/hooks/useYouTubeSearch";
 import { useAppStore } from "@/lib/AppStore";
+import { seededShuffle, seedFrom } from "@/lib/shuffle";
 
 // One horizontally scrolling row of live YouTube results for a single query.
 //
 // Owns its own fetch so each row loads independently — one row hitting the quota
 // ceiling doesn't blank the whole screen.
-export default function VideoRow({ query, category = null, maxResults = 10 }) {
+export default function VideoRow({ query, category = null, maxResults = 50, show = 20 }) {
   const { startPlaying, fitsDrive, driveMinutes } = useAppStore();
+  // 50 is deliberate and free: a search costs 100 quota units regardless of how
+  // many results it asks for, so requesting the maximum buys a much deeper pool
+  // at no extra cost — which is what makes varying the selection possible.
   const { videos: allVideos, isLoading, error, isMissingKey, isQuotaError } = useYouTubeSearch(query, {
     category,
     maxResults,
   });
 
+  // Shuffled per page load so the same query doesn't show the same handful every
+  // time. YouTube's relevance order is stable, and the results are cached for
+  // 12h, so without this you'd see identical videos on every visit.
+  const shuffled = useMemo(
+    () => seededShuffle(allVideos, seedFrom(query)).slice(0, show),
+    [allVideos, query, show]
+  );
+
   // A drive time acts as a ceiling: nothing longer than the trip is shown.
-  const videos = fitsDrive(allVideos);
-  const hiddenByDrive = allVideos.length - videos.length;
+  const videos = fitsDrive(shuffled);
+  const hiddenByDrive = shuffled.length - videos.length;
 
   if (isLoading) {
     return (

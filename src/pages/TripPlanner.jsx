@@ -7,6 +7,7 @@ import { useAppStore } from "@/lib/AppStore";
 import { CATEGORIES, FEATURED_CATEGORY_IDS, queryForCategory } from "@/lib/contentData";
 import { useYouTubeSearches } from "@/hooks/useYouTubeSearch";
 import { mapLinks } from "@/hooks/useDriveTime";
+import { seededShuffle, seedFrom } from "@/lib/shuffle";
 import PlaceInput from "@/components/PlaceInput";
 import ItemRow from "@/components/ItemRow";
 import { cn } from "@/lib/utils";
@@ -110,7 +111,19 @@ export default function TripPlanner() {
   }, [origin, destination, originPlaceId, destinationPlaceId]);
 
   const fetchIds = (interests.length ? interests : FEATURED_CATEGORY_IDS).slice(0, MAX_INTEREST_FETCHES);
-  const pool = useYouTubeSearches(fetchIds.map((id) => ({ query: queryForCategory(id), category: id })));
+  // 50 per topic costs no more than 8 — quota is per search, not per result — and
+  // a deeper pool means better fills and more swap options per slot.
+  const pool = useYouTubeSearches(
+    fetchIds.map((id) => ({ query: queryForCategory(id), category: id })),
+    { maxResults: 50 }
+  );
+
+  // Shuffled per page load so planning the same trip twice doesn't produce the
+  // identical route.
+  const poolVideos = useMemo(
+    () => seededShuffle(pool.videos, seedFrom(fetchIds.join(","))),
+    [pool.videos, fetchIds.join(",")]
+  );
 
   // Changing the drive or the interests invalidates hand-picked slots.
   useEffect(() => setSwaps({}), [driveMinutes, interests.join(",")]);
@@ -121,14 +134,14 @@ export default function TripPlanner() {
    * with the current drive and interests.
    */
   const queue = useMemo(() => {
-    if (!driveMinutes || !pool.videos.length) return [];
+    if (!driveMinutes || !poolVideos.length) return [];
 
-    const byId = new Map(pool.videos.map((v) => [v.id, v]));
+    const byId = new Map(poolVideos.map((v) => [v.id, v]));
 
     // Base fill: greedy over the pool in order, so it's deterministic.
     const base = [];
     let remaining = driveMinutes;
-    for (const video of pool.videos) {
+    for (const video of poolVideos) {
       if (remaining <= 0) break;
       if (video.duration <= remaining) {
         base.push(video);
@@ -150,7 +163,7 @@ export default function TripPlanner() {
     }
 
     return result;
-  }, [driveMinutes, pool.videos, swaps]);
+  }, [driveMinutes, poolVideos, swaps]);
 
   /**
    * Alternatives for one slot: anything not already in the queue that fits the
@@ -163,7 +176,7 @@ export default function TripPlanner() {
     const otherTotal = queue.reduce((sum, v, i) => (i === index ? sum : sum + v.duration), 0);
     const budget = driveMinutes - otherTotal;
     const inQueue = new Set(queue.map((v) => v.id));
-    return pool.videos.filter((v) => v.id === current.id || (!inQueue.has(v.id) && v.duration <= budget));
+    return poolVideos.filter((v) => v.id === current.id || (!inQueue.has(v.id) && v.duration <= budget));
   };
 
   const swapSlot = (index, direction) => {
