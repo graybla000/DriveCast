@@ -1,9 +1,25 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { searchVideos, YT_ERROR } from "@/lib/youtube";
+import { queryForCategory } from "@/lib/contentData";
 
 // Twelve hours, matching the localStorage TTL in the client. React Query dedupes
 // within a session; the client's cache survives reloads.
 const STALE_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * The category's un-narrowed query, to stand in when `query` itself can't be
+ * searched and has nothing cached.
+ *
+ * Only the caller knows a query came from a category, and only the category knows
+ * its broad form — so the pairing is made here rather than in the fetch layer.
+ * Returns "" when there's nothing useful to fall back to (no category, or the
+ * query already *is* the broad one).
+ */
+function broaderQueryFor(category, query) {
+  if (!category) return "";
+  const base = queryForCategory(category);
+  return base && base.trim().toLowerCase() !== query.trim().toLowerCase() ? base : "";
+}
 
 /**
  * Live YouTube search for one query.
@@ -16,7 +32,8 @@ export function useYouTubeSearch(query, { maxResults = 12, category = null, enab
 
   const result = useQuery({
     queryKey: ["youtube", trimmed.toLowerCase(), maxResults, category],
-    queryFn: () => searchVideos(trimmed, { maxResults, category }),
+    queryFn: () =>
+      searchVideos(trimmed, { maxResults, category, fallbackQuery: broaderQueryFor(category, trimmed) }),
     enabled: enabled && trimmed.length > 0,
     staleTime: STALE_MS,
     gcTime: STALE_MS,
@@ -44,7 +61,14 @@ export function useYouTubeSearches(specs = [], { maxResults = 8, enabled = true 
       .filter((s) => s.query?.trim())
       .map((s) => ({
         queryKey: ["youtube", s.query.trim().toLowerCase(), maxResults, s.category ?? null],
-        queryFn: () => searchVideos(s.query, { maxResults, category: s.category ?? null }),
+        queryFn: () =>
+          searchVideos(s.query, {
+            maxResults,
+            category: s.category ?? null,
+            // Sector-narrowed queries arrive here — this is what keeps a lit pill
+            // from blanking the row when the quota is gone.
+            fallbackQuery: broaderQueryFor(s.category ?? null, s.query),
+          }),
         // Lets a caller hold off entirely — quota shouldn't be spent fetching
         // videos when the user has chosen podcasts.
         enabled,

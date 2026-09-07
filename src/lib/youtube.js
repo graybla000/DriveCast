@@ -145,7 +145,7 @@ const decorate = (videos, category) =>
   videos.map((v) => ({ ...v, category, gradient: gradientFor(v.youtubeId ?? v.id) }));
 
 /** Search via the app's own endpoint. Returns items ready for the UI. */
-export async function searchVideos(query, { maxResults = 12, category = null } = {}) {
+export async function searchVideos(query, { maxResults = 12, category = null, fallbackQuery = "" } = {}) {
   const trimmed = (query ?? "").trim();
   if (!trimmed) return [];
 
@@ -164,12 +164,24 @@ export async function searchVideos(query, { maxResults = 12, category = null } =
   // — a spent daily quota, a sleeping server, no connection. Falling back to it is
   // what keeps the screen full of content instead of a column of error cards, so
   // every failure path goes through here rather than throwing directly.
+  const fallbackKey = (fallbackQuery ?? "").trim().toLowerCase();
   const orStale = (err) => {
     if (entry?.data.length) return decorate(entry.data.slice(0, want), category);
+
+    // A sector pill rewrites the query rather than filtering results, so it asks
+    // for a cache key that a pill-free session never wrote. Standing in the
+    // category's broad query keeps those rows populated instead of letting a pill
+    // blank them out whenever a live search isn't possible.
+    if (fallbackKey && fallbackKey !== cacheKey) {
+      const base = cacheEntry(fallbackKey);
+      if (base?.data.length) return decorate(base.data.slice(0, want), category);
+    }
     throw err;
   };
 
-  const url = `/api/search?q=${encodeURIComponent(trimmed)}&maxResults=${FETCH_SIZE}`;
+  const url =
+    `/api/search?q=${encodeURIComponent(trimmed)}&maxResults=${FETCH_SIZE}` +
+    (fallbackKey && fallbackKey !== cacheKey ? `&fallback=${encodeURIComponent(fallbackQuery)}` : "");
 
   let res;
   try {

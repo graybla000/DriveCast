@@ -187,7 +187,7 @@ async function apiGet(path, params) {
  * neither duration nor a trustworthy embeddable flag, and a non-embeddable video
  * fails *silently* in the IFrame player.
  */
-export async function searchVideos(query, { maxResults = 12 } = {}) {
+export async function searchVideos(query, { maxResults = 12, fallbackQuery = "" } = {}) {
   const trimmed = (query ?? "").trim();
   if (!trimmed) return { videos: [], stale: false };
 
@@ -246,6 +246,19 @@ export async function searchVideos(query, { maxResults = 12 } = {}) {
     // row. `at` is deliberately left untouched — the entry has to stay expired so
     // the next request tries live again after the quota resets.
     if (hit?.data?.length) return { videos: hit.data.slice(0, want), stale: true };
+
+    // Nothing under this exact key — but a sector-narrowed query is a *different*
+    // key from its category's broad one ("aerospace manufacturing explained" vs
+    // "manufacturing process explained factory production"). Five sector-aware
+    // categories times ten sectors is fifty such keys, none of which a cache warmed
+    // without pills will ever hold, so a spent quota emptied every row the moment a
+    // pill was lit. The broader query's results are still on-topic for the row, so
+    // they stand in rather than showing nothing.
+    const base = (fallbackQuery ?? "").trim().toLowerCase();
+    if (base && base !== cacheKey) {
+      const baseHit = cache.get(base);
+      if (baseHit?.data?.length) return { videos: baseHit.data.slice(0, want), stale: true };
+    }
     throw err;
   }
 }
@@ -258,9 +271,12 @@ export async function handleSearchRequest(requestUrl) {
   const url = new URL(requestUrl, "http://localhost");
   const query = url.searchParams.get("q") ?? "";
   const maxResults = Number(url.searchParams.get("maxResults")) || 12;
+  // The broader query to stand in for this one if it can't be searched. Sent by
+  // the client, which is the side that knows a query is a sector-narrowed variant.
+  const fallbackQuery = url.searchParams.get("fallback") ?? "";
 
   try {
-    const { videos, stale } = await searchVideos(query, { maxResults });
+    const { videos, stale } = await searchVideos(query, { maxResults, fallbackQuery });
     // `stale` tells the client these are last-known results, not a live search,
     // so it can keep them briefly rather than for the full day.
     return { status: 200, body: { videos, stale } };
