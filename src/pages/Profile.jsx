@@ -1,8 +1,7 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Sun, Moon, Bell, Mic, Download, Car, Sparkles, Crown, LogOut,
-  Baby, Heart, Map, Clock, Trophy, ChevronRight,
+  Baby, Heart, Map, Clock,
 } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -21,7 +20,6 @@ const FUTURE_FEATURES = [
 ];
 
 export default function Profile() {
-  const navigate = useNavigate();
   // Preferred categories come from the shared store now, so Home and the trip
   // planner can honour them instead of asking again.
   const {
@@ -119,20 +117,7 @@ export default function Profile() {
         </div>
       </Section>
 
-      <Section title="Sports" allowOverflow>
-        <Row
-          icon={<Trophy size={18} />}
-          label="Favorite teams"
-          desc="Sets what the sports rows follow"
-        >
-          <button
-            onClick={() => navigate("/sports")}
-            className="flex items-center gap-1 text-[12px] font-bold text-accent active:scale-95 transition-transform shrink-0"
-          >
-            Open <ChevronRight size={13} />
-          </button>
-        </Row>
-        {/* Same component the Sports screen uses, so both stay in step. */}
+      <Section title="Favorite teams" allowOverflow>
         <FavoriteTeams bare />
       </Section>
 
