@@ -43,19 +43,26 @@ export default function TeamPicker({ teams, value, onChange, placeholder = "Pick
     return teams.filter((t) => t.toLowerCase().includes(q));
   }, [teams, filter]);
 
-  /** Place the panel below the trigger, or above it when there isn't room. */
+  /**
+   * Always open below the trigger, shifted up only as far as needed to fit.
+   *
+   * Deliberately NOT a flip. An earlier version jumped the panel fully above the
+   * trigger when space was tight, which made neighbouring pickers behave
+   * completely differently — hockey opened downward while soccer, one row lower,
+   * leapt 216px upward. Shifting keeps every dropdown anchored to the control that
+   * opened it, so the five behave consistently.
+   */
   const place = useCallback(() => {
     const el = triggerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom - BOTTOM_RESERVE;
-    const dropUp = spaceBelow < PANEL_HEIGHT && rect.top > spaceBelow;
 
-    setPosition({
-      left: rect.left,
-      width: rect.width,
-      top: dropUp ? Math.max(GAP, rect.top - PANEL_HEIGHT - GAP) : rect.bottom + GAP,
-    });
+    // The floating bottom nav makes the last stretch of viewport unusable.
+    const safeBottom = window.innerHeight - BOTTOM_RESERVE;
+    let top = rect.bottom + GAP;
+    if (top + PANEL_HEIGHT > safeBottom) top = Math.max(GAP, safeBottom - PANEL_HEIGHT);
+
+    setPosition({ left: rect.left, width: rect.width, top });
   }, []);
 
   useEffect(() => {
