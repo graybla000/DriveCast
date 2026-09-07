@@ -30,7 +30,11 @@ export const CATEGORIES = [
     name: "Engineering",
     icon: "Cog",
     gradient: "from-slate-400/80 to-slate-700/80",
-    query: "mechanical engineering explained GD&T tolerance design",
+    // Deliberately broad. This previously read "...explained GD&T tolerance
+    // design", which baked one topic into the search and made every result a
+    // GD&T video. A category query should describe the FIELD, not a subject
+    // inside it — the specific stuff is what the search box is for.
+    query: "mechanical engineering explained how it works",
     podcastQuery: "engineering",
   },
   {
