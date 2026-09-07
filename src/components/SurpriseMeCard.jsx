@@ -8,7 +8,7 @@ export default function SurpriseMeCard({ onClick }) {
       onClick={onClick}
       className="relative w-full rounded-3xl p-5 overflow-hidden text-left active:scale-[0.98] transition-transform"
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-600 via-purple-700 to-indigo-800" />
+      <div className="absolute inset-0 bg-gradient-to-br from-sky-500 via-blue-700 to-blue-900" />
       <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-gold/30 blur-2xl" />
       <div className="absolute inset-0 rounded-3xl ring-1 ring-white/15" />
       <div className="relative flex items-center gap-4">
