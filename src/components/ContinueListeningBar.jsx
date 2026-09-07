@@ -30,6 +30,7 @@ export default function ContinueListeningBar() {
     seekToPercent,
     playerError,
     playerContainerRef,
+    isAudioPlayback,
   } = useAppStore();
 
   if (!nowPlaying) return null;
@@ -48,11 +49,28 @@ export default function ContinueListeningBar() {
     <div className="sticky top-14 z-30 px-5 py-2.5 bg-background/60 backdrop-blur-md">
       <div className="mx-auto max-w-md">
         <div className="glass-surface hairline rounded-2xl p-2.5 flex items-center gap-3 shadow-lg shadow-black/30">
-          {/* YouTube mounts its iframe inside this box. */}
-          <div
-            ref={playerContainerRef}
-            className="w-[92px] h-[52px] rounded-lg overflow-hidden bg-black shrink-0 [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:block"
-          />
+          {/* Audio has no visible surface, so show the episode artwork instead of
+              an empty black box. Video keeps its iframe mount, which must stay
+              visible: YouTube requires it and hidden iframes get throttled. */}
+          {isAudioPlayback ? (
+            <div className="w-[92px] h-[52px] rounded-lg overflow-hidden bg-muted shrink-0">
+              {nowPlaying.thumbnail && (
+                <img
+                  src={nowPlaying.thumbnail}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              )}
+            </div>
+          ) : (
+            <div
+              ref={playerContainerRef}
+              className="w-[92px] h-[52px] rounded-lg overflow-hidden bg-black shrink-0 [&_iframe]:w-full [&_iframe]:h-full [&_iframe]:block"
+            />
+          )}
 
           <button
             onClick={togglePlay}

@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, ArrowRight, AlertCircle, KeyRound } from "lucide-react";
+import { Clock, ArrowRight, AlertCircle, KeyRound, Headphones, Youtube } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
-import { CATEGORIES, FEATURED_CATEGORY_IDS, getCategory, queryForCategory, surpriseFrom } from "@/lib/contentData";
+import {
+  CATEGORIES, FEATURED_CATEGORY_IDS, getCategory, queryForCategory,
+  podcastQueryForCategory, surpriseFrom,
+} from "@/lib/contentData";
+import { cn } from "@/lib/utils";
 import { useYouTubeSearch } from "@/hooks/useYouTubeSearch";
 import SearchBar from "@/components/SearchBar";
 import FilterPills from "@/components/FilterPills";
@@ -12,6 +16,7 @@ import DrivePanel from "@/components/DrivePanel";
 import HorizontalScroller from "@/components/HorizontalScroller";
 import ItemRow from "@/components/ItemRow";
 import VideoRow from "@/components/VideoRow";
+import EpisodeRow from "@/components/EpisodeRow";
 import SurpriseResultSheet from "@/components/SurpriseResultSheet";
 
 function greeting() {
@@ -27,7 +32,10 @@ const SEARCH_DEBOUNCE_MS = 600;
 
 export default function Home() {
   const navigate = useNavigate();
-  const { recentSearches, addRecentSearch, startPlaying } = useAppStore();
+  const { recentSearches, addRecentSearch, startPlaying, isDriveActive } = useAppStore();
+  // Audio while a drive is on, because that's the only source that keeps playing
+  // once the browser is backgrounded for navigation. Video otherwise.
+  const [source, setSource] = useState(isDriveActive ? "audio" : "video");
   const [query, setQuery] = useState("");
   const [committedQuery, setCommittedQuery] = useState("");
   const [activePill, setActivePill] = useState(null);
@@ -102,6 +110,8 @@ export default function Home() {
             </HorizontalScroller>
           </Section>
 
+          <SourceToggle source={source} onChange={setSource} />
+
           {FEATURED_CATEGORY_IDS.map((id) => {
             const category = getCategory(id);
             if (!category) return null;
@@ -112,7 +122,11 @@ export default function Home() {
                 actionLabel="See all"
                 onAction={() => navigate(`/explore?category=${id}`)}
               >
-                <VideoRow query={category.query} category={id} />
+                {source === "audio" ? (
+                  <EpisodeRow query={podcastQueryForCategory(id)} category={id} />
+                ) : (
+                  <VideoRow query={category.query} category={id} />
+                )}
               </Section>
             );
           })}
@@ -193,6 +207,35 @@ function SearchResults({ query, committedQuery, search }) {
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * Audio vs video. Not a cosmetic preference: only audio survives the browser
+ * being backgrounded, so it's the one that keeps playing while Maps navigates.
+ */
+function SourceToggle({ source, onChange }) {
+  return (
+    <div className="flex items-center gap-1 p-1 rounded-2xl glass hairline">
+      {[
+        { id: "audio", label: "Podcasts", icon: <Headphones size={14} />, hint: "plays while you drive" },
+        { id: "video", label: "Videos", icon: <Youtube size={14} />, hint: "needs the app open" },
+      ].map((option) => (
+        <button
+          key={option.id}
+          onClick={() => onChange(option.id)}
+          className={cn(
+            "flex-1 h-11 rounded-xl flex flex-col items-center justify-center gap-0 transition-all",
+            source === option.id ? "bg-accent text-accent-foreground" : "text-muted-foreground"
+          )}
+        >
+          <span className="flex items-center gap-1.5 text-[13px] font-bold">
+            {option.icon} {option.label}
+          </span>
+          <span className="text-[9.5px] font-semibold opacity-75">{option.hint}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 

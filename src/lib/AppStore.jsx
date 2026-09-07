@@ -5,6 +5,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useTrips } from "@/hooks/useTrips";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useDriveTime } from "@/hooks/useDriveTime";
 import { RECENT_SEARCHES_DEFAULT } from "@/lib/contentData";
 
@@ -24,7 +25,16 @@ export function AppStoreProvider({ children }) {
   // come from the player itself rather than a timer, so the bar tracks the
   // actual video.
   const player = useYouTubePlayer();
+  // Podcast episodes play through a real <audio> element instead, which is what
+  // allows playback to continue when the browser is backgrounded.
+  const audio = useAudioPlayer();
   const lastPersisted = useRef(0);
+
+  // Which player owns the current item. Episodes carry an audioUrl; videos a
+  // youtubeId. Everything below routes on this so the two can't fight.
+  const isEpisode = (item) => Boolean(item?.audioUrl);
+  const activeIsAudio = isEpisode(continueListening.nowPlaying);
+  const active = activeIsAudio ? audio : player;
 
   // Mirror live progress into the stored nowPlaying record, so Continue
   // Listening survives a reload. Throttled — the player polls 4x/second and
@@ -34,39 +44,54 @@ export function AppStoreProvider({ children }) {
   // video length, so on a two-hour video a 2% step would only save every few
   // minutes and a reload would lose that much progress.
   useEffect(() => {
-    if (!continueListening.nowPlaying || !player.currentTime) return;
-    if (Math.abs(player.currentTime - lastPersisted.current) < 5) return;
-    lastPersisted.current = player.currentTime;
+    if (!continueListening.nowPlaying || !active.currentTime) return;
+    if (Math.abs(active.currentTime - lastPersisted.current) < 5) return;
+    lastPersisted.current = active.currentTime;
     continueListening.savePosition({
-      progress: player.progress,
-      positionSeconds: player.currentTime,
+      progress: active.progress,
+      positionSeconds: active.currentTime,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [player.currentTime, continueListening.nowPlaying?.id]);
+  }, [active.currentTime, continueListening.nowPlaying?.id]);
 
   const startPlaying = (item) => {
     continueListening.startPlaying(item);
     lastPersisted.current = 0;
-    player.load(item.youtubeId);
+
+    // Stop the other player first — two sources playing at once is the obvious
+    // failure mode of having both.
+    if (isEpisode(item)) {
+      player.stop();
+      audio.load(item);
+    } else {
+      audio.stop();
+      player.load(item.youtubeId);
+    }
   };
 
   const togglePlay = () => {
-    if (player.isPlaying) {
-      player.pause();
+    if (active.isPlaying) {
+      active.pause();
       return;
     }
-    // After a reload the bar is restored from localStorage but the player holds
-    // no video, so the first press has to load it and pick up where we left off.
+    // After a reload the bar is restored from localStorage but neither player
+    // holds anything, so the first press has to reload and resume.
     const stored = continueListening.nowPlaying;
-    if (!player.loadedVideoId && stored?.youtubeId) {
+    if (activeIsAudio) {
+      if (!audio.loadedUrl && stored?.audioUrl) {
+        audio.load(stored, stored.positionSeconds ?? 0);
+        return;
+      }
+    } else if (!player.loadedVideoId && stored?.youtubeId) {
       player.load(stored.youtubeId, stored.positionSeconds ?? 0);
       return;
     }
-    player.play();
+    active.play();
   };
 
   const stopPlaying = () => {
     player.stop();
+    audio.stop();
     continueListening.stopPlaying();
   };
 
@@ -89,16 +114,20 @@ export function AppStoreProvider({ children }) {
     startPlaying,
     setProgress: continueListening.setProgress,
     stopPlaying,
-    // Live player state. `progress` is the real 0–100 position; the stored
-    // nowPlaying.progress is only the resume hint written between sessions.
-    isPlaying: player.isPlaying,
+    // Live player state, from whichever player owns the current item.
+    // `progress` is the real 0–100 position; the stored nowPlaying.progress is
+    // only the resume hint written between sessions.
+    isPlaying: active.isPlaying,
     togglePlay,
-    progress: player.progress,
-    currentTime: player.currentTime,
-    duration: player.duration,
-    seekToPercent: player.seekToPercent,
-    playerError: player.error,
+    progress: active.progress,
+    currentTime: active.currentTime,
+    duration: active.duration,
+    seekToPercent: active.seekToPercent,
+    playerError: active.error,
+    // Only the video player needs a mount point; audio has no visible surface.
     playerContainerRef: player.containerRef,
+    // Lets the mini-player hide the video box when audio is playing.
+    isAudioPlayback: activeIsAudio,
     recentSearches,
     addRecentSearch,
     clearRecentSearches,

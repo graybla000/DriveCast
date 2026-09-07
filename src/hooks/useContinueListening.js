@@ -12,8 +12,12 @@ export function useContinueListening() {
         title: item.title,
         category: item.category,
         gradient: item.gradient,
-        // Needed to reload the video after a refresh, not just to start it.
+        // Needed to reload after a refresh, not just to start. One of these is
+        // set depending on the source, and which one decides the player used.
         youtubeId: item.youtubeId,
+        audioUrl: item.audioUrl,
+        thumbnail: item.thumbnail,
+        host: item.host,
         progress: 0,
       });
     },

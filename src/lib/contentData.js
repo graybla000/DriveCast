@@ -15,6 +15,7 @@ export const CATEGORIES = [
     icon: "Factory",
     gradient: "from-orange-500/80 to-amber-700/80",
     query: "manufacturing process explained factory production",
+    podcastQuery: "manufacturing",
   },
   {
     id: "cnc",
@@ -22,6 +23,7 @@ export const CATEGORIES = [
     icon: "Drill",
     gradient: "from-sky-500/80 to-indigo-700/80",
     query: "CNC machining tutorial explained",
+    podcastQuery: "machining",
   },
   {
     id: "engineering",
@@ -29,6 +31,7 @@ export const CATEGORIES = [
     icon: "Cog",
     gradient: "from-slate-400/80 to-slate-700/80",
     query: "mechanical engineering explained GD&T tolerance design",
+    podcastQuery: "engineering",
   },
   {
     id: "history",
@@ -36,6 +39,7 @@ export const CATEGORIES = [
     icon: "Landmark",
     gradient: "from-amber-500/80 to-orange-700/80",
     query: "history documentary full episode",
+    podcastQuery: "history",
   },
   {
     id: "science",
@@ -43,6 +47,7 @@ export const CATEGORIES = [
     icon: "Atom",
     gradient: "from-cyan-500/80 to-blue-700/80",
     query: "science explained documentary",
+    podcastQuery: "science",
   },
   {
     id: "space",
@@ -50,6 +55,7 @@ export const CATEGORIES = [
     icon: "Rocket",
     gradient: "from-indigo-500/80 to-purple-800/80",
     query: "space astronomy documentary explained",
+    podcastQuery: "space astronomy",
   },
   {
     id: "business",
@@ -57,6 +63,7 @@ export const CATEGORIES = [
     icon: "Briefcase",
     gradient: "from-emerald-500/80 to-teal-700/80",
     query: "business economics explained documentary",
+    podcastQuery: "business",
   },
   {
     id: "nature",
@@ -64,6 +71,7 @@ export const CATEGORIES = [
     icon: "Trees",
     gradient: "from-green-500/80 to-emerald-800/80",
     query: "nature documentary wildlife",
+    podcastQuery: "nature",
   },
   {
     id: "roadside",
@@ -71,6 +79,7 @@ export const CATEGORIES = [
     icon: "Compass",
     gradient: "from-rose-500/80 to-red-700/80",
     query: "roadside attractions america road trip",
+    podcastQuery: "road trip travel",
   },
   {
     id: "gems",
@@ -78,15 +87,30 @@ export const CATEGORIES = [
     icon: "Gem",
     gradient: "from-fuchsia-500/80 to-pink-700/80",
     query: "hidden gems unusual places documentary",
+    podcastQuery: "travel stories",
   },
 ];
 
 export const getCategory = (id) => CATEGORIES.find((c) => c.id === id);
 
-/** The query to search for a category id, falling back to its name. */
+/** The YouTube query for a category id, falling back to its name. */
 export function queryForCategory(id) {
   const category = getCategory(id);
   return category?.query ?? category?.name ?? "";
+}
+
+/**
+ * The podcast query for a category id.
+ *
+ * Deliberately separate from the YouTube one. The podcast directory matches show
+ * titles and authors, not episode content, so the long descriptive phrases that
+ * work for YouTube return junk here — "CNC machining tutorial explained" surfaced
+ * a woodworking show and an actor interview, while plain "machining" returns
+ * Machine Shop Mastery and Swarfcast.
+ */
+export function podcastQueryForCategory(id) {
+  const category = getCategory(id);
+  return category?.podcastQuery ?? category?.name ?? "";
 }
 
 // Which categories get their own row on Home. Each one is a live search, so
