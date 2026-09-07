@@ -32,6 +32,15 @@ function coordsFrom(value) {
   return { lat, lng };
 }
 
+/**
+ * Whether tapping a maps link hands off to a native app rather than opening a tab.
+ *
+ * A coarse pointer is the practical signal for "phone or tablet" here. It decides
+ * only how the hand-off is sequenced, so a wrong guess degrades to the old
+ * behaviour rather than breaking anything.
+ */
+const isHandoffDevice = () => window.matchMedia?.("(pointer: coarse)").matches ?? false;
+
 const formatDrive = (minutes) => {
   if (!minutes) return "";
   const h = Math.floor(minutes / 60);
@@ -44,7 +53,7 @@ export default function TripPlanner() {
     saveTrip, trips, deleteTrip, startPlaying,
     drive, driveMinutes, driveLoading, driveError,
     lookupDrive, locateMe, isLocating, locationError,
-    preferredCategories, activeSectors, isAudio,
+    preferredCategories, activeSectors, isAudio, prewarmAudio,
   } = useAppStore();
 
   const [origin, setOrigin] = useState(drive?.origin ?? "");
@@ -59,6 +68,8 @@ export default function TripPlanner() {
   // Slot index -> chosen video id, when the auto pick has been swapped out.
   const [swaps, setSwaps] = useState({});
   const [savedFlash, setSavedFlash] = useState(false);
+  // True for the moment between tapping a maps button and audio actually starting.
+  const [launching, setLaunching] = useState(false);
 
   const toggleInterest = (id) =>
     setInterests((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -212,21 +223,67 @@ export default function TripPlanner() {
     setSwaps((prev) => ({ ...prev, [index]: next.id }));
   };
 
+  /**
+   * Buffer the first episode as soon as the route has one.
+   *
+   * The user is still picking interests and reading the queue at this point, which
+   * is dead time the network can use. By the time they tap a maps button the audio
+   * has data ready and starts immediately, instead of the hand-off racing a fetch
+   * it usually loses.
+   */
+  useEffect(() => {
+    if (isAudio && queue[0]?.audioUrl) prewarmAudio(queue[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAudio, queue[0]?.audioUrl]);
+
   const links = mapLinks(origin, destination);
   const ready = Boolean(driveMinutes && links);
   const totalMin = queue.reduce((a, b) => a + b.duration, 0);
 
   /**
-   * Clicking a map link navigates AND starts the first video.
+   * Clicking a map link starts the first item AND opens navigation.
    *
-   * The anchor keeps a real href so the browser opens it natively — deliberately
-   * not window.open() after async work, which popup blockers reject once the
-   * user's gesture has been consumed.
+   * On a phone the order matters, and it isn't the obvious one. Handing off to a
+   * maps app hides this page, and a browser suspends a media element that goes
+   * hidden before playback has actually begun — so firing play() and navigating in
+   * the same tick produced silence until the user came back to the browser, which
+   * un-hid the page and let the pending play() finally resolve.
+   *
+   * So on touch devices the navigation is held until the audio reports it is
+   * genuinely playing (capped, so a slow feed can't strand anyone). play() itself
+   * is still called synchronously inside the click, because iOS only permits
+   * playback to start from a real user gesture.
+   *
+   * Desktop keeps the plain anchor: there is no app to hand off to, the link opens
+   * a new tab, and this page keeps running untouched — navigating it away instead
+   * would close the player we just started.
    */
-  const startTrip = () => {
+  /**
+   * Buffering also gets a nudge on finger-down, which lands before the click.
+   *
+   * Insurance for iOS, which may refuse to load media until a gesture has
+   * happened — in which case the effect above did nothing and this is the first
+   * chance to start. A no-op when the audio is already warm.
+   */
+  const warmOnTouch = () => {
+    if (isAudio && queue[0]?.audioUrl) prewarmAudio(queue[0]);
+  };
+
+  const startTrip = async (event, url) => {
     if (!queue.length) return;
-    startPlaying(queue[0]);
     saveTrip({ destination, origin: originLabel || origin, driveMinutes, interests, stops: queue });
+
+    if (!isHandoffDevice()) {
+      startPlaying(queue[0]);
+      return; // let the anchor open its new tab natively
+    }
+
+    event.preventDefault();
+    setLaunching(true);
+    // Called before the await, so it still counts as gesture-initiated.
+    await startPlaying(queue[0]);
+    setLaunching(false);
+    window.location.href = url;
   };
 
   const saveCurrent = () => {
@@ -434,19 +491,37 @@ export default function TripPlanner() {
                 href={links.google}
                 target="_blank"
                 rel="noreferrer"
-                onClick={startTrip}
+                onPointerDown={warmOnTouch}
+                onClick={(e) => startTrip(e, links.google)}
                 className="flex-1 h-14 rounded-2xl bg-gradient-to-r from-accent to-cyan-500 text-accent-foreground font-bold text-[14px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
               >
-                <Navigation size={17} /> Google Maps
+                {launching ? (
+                  <>
+                    <Loader2 size={17} className="animate-spin" /> Starting audio…
+                  </>
+                ) : (
+                  <>
+                    <Navigation size={17} /> Google Maps
+                  </>
+                )}
               </a>
               <a
                 href={links.apple}
                 target="_blank"
                 rel="noreferrer"
-                onClick={startTrip}
+                onPointerDown={warmOnTouch}
+                onClick={(e) => startTrip(e, links.apple)}
                 className="flex-1 h-14 rounded-2xl glass hairline font-bold text-[14px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
               >
-                <MapPin size={17} /> Apple Maps
+                {launching ? (
+                  <>
+                    <Loader2 size={17} className="animate-spin" /> Starting audio…
+                  </>
+                ) : (
+                  <>
+                    <MapPin size={17} /> Apple Maps
+                  </>
+                )}
               </a>
             </div>
             <p className="text-[11.5px] font-medium text-muted-foreground text-center">

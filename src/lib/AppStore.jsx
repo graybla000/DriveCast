@@ -60,6 +60,12 @@ export function AppStoreProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active.currentTime, continueListening.nowPlaying?.id]);
 
+  /**
+   * Start an item. Returns a promise resolving true once audio is genuinely
+   * playing, which the trip planner waits on before handing off to a maps app.
+   * Video resolves false immediately: an iframe can't play backgrounded at all,
+   * so there is nothing to wait for.
+   */
   const startPlaying = (item) => {
     continueListening.startPlaying(item);
     lastPersisted.current = 0;
@@ -68,11 +74,11 @@ export function AppStoreProvider({ children }) {
     // failure mode of having both.
     if (isEpisode(item)) {
       player.stop();
-      audio.load(item);
-    } else {
-      audio.stop();
-      player.load(item.youtubeId);
+      return audio.load(item);
     }
+    audio.stop();
+    player.load(item.youtubeId);
+    return Promise.resolve(false);
   };
 
   const togglePlay = () => {
@@ -134,6 +140,11 @@ export function AppStoreProvider({ children }) {
     playerContainerRef: player.containerRef,
     // Lets the mini-player hide the video box when audio is playing.
     isAudioPlayback: activeIsAudio,
+    /**
+     * Buffer an episode ahead of playing it, so the tap that starts a drive doesn't
+     * spend a second and a half fetching before any sound comes out.
+     */
+    prewarmAudio: audio.prewarm,
     recentSearches,
     addRecentSearch,
     clearRecentSearches,
