@@ -141,8 +141,24 @@ export function clearSearchCache() {
 
 /* ----------------------------------------------------------------- search -- */
 
-const decorate = (videos, category) =>
-  videos.map((v) => ({ ...v, category, gradient: gradientFor(v.youtubeId ?? v.id) }));
+// Mirrors MIN_DURATION_MINUTES in server/youtubeSearch.js, which is where the
+// reasoning lives. Repeated rather than imported because that module reads the
+// filesystem and holds the API key — it must never reach the browser bundle.
+//
+// Live searches are already restricted to YouTube's `medium` bucket (4-20m), so
+// this exists purely for entries written before that: they stay readable here for
+// up to STALE_KEEP_MS (30 days) and about a third of what they hold is shorts.
+const MIN_DURATION_MINUTES = 4;
+
+/** Apply the floor, take what the caller asked for, add presentation fields. */
+const present = (videos, want, category) =>
+  videos
+    // Filtered before slicing, deliberately: slicing an old unfiltered cache
+    // first would spend a row's eight slots on shorts and then drop them,
+    // leaving the row near-empty.
+    .filter((v) => (v.duration ?? 0) >= MIN_DURATION_MINUTES)
+    .slice(0, want)
+    .map((v) => ({ ...v, category, gradient: gradientFor(v.youtubeId ?? v.id) }));
 
 /** Search via the app's own endpoint. Returns items ready for the UI. */
 export async function searchVideos(query, { maxResults = 12, category = null, fallbackQuery = "" } = {}) {
@@ -158,7 +174,7 @@ export async function searchVideos(query, { maxResults = 12, category = null, fa
   const cacheKey = trimmed.toLowerCase();
   const want = Math.min(FETCH_SIZE, Math.max(1, maxResults));
   const entry = cacheEntry(cacheKey);
-  if (entry && isFresh(entry)) return decorate(entry.data.slice(0, want), category);
+  if (entry && isFresh(entry)) return present(entry.data, want, category);
 
   // An expired entry is still the best answer available if the search below fails
   // — a spent daily quota, a sleeping server, no connection. Falling back to it is
@@ -166,7 +182,7 @@ export async function searchVideos(query, { maxResults = 12, category = null, fa
   // every failure path goes through here rather than throwing directly.
   const fallbackKey = (fallbackQuery ?? "").trim().toLowerCase();
   const orStale = (err) => {
-    if (entry?.data.length) return decorate(entry.data.slice(0, want), category);
+    if (entry?.data.length) return present(entry.data, want, category);
 
     // A sector pill rewrites the query rather than filtering results, so it asks
     // for a cache key that a pill-free session never wrote. Standing in the
@@ -174,7 +190,7 @@ export async function searchVideos(query, { maxResults = 12, category = null, fa
     // blank them out whenever a live search isn't possible.
     if (fallbackKey && fallbackKey !== cacheKey) {
       const base = cacheEntry(fallbackKey);
-      if (base?.data.length) return decorate(base.data.slice(0, want), category);
+      if (base?.data.length) return present(base.data, want, category);
     }
     throw err;
   };
@@ -208,5 +224,5 @@ export async function searchVideos(query, { maxResults = 12, category = null, fa
   // `payload.stale` means the server answered from its own expired cache, so this
   // isn't a live result and shouldn't be held like one — see STALE_ECHO_TTL_MS.
   cacheSet(cacheKey, videos, { stale: payload.stale === true });
-  return decorate(videos.slice(0, want), category);
+  return present(videos, want, category);
 }

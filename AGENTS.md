@@ -95,6 +95,46 @@ build-time check for this — see "Verifying the key stays server-side" below.
   real durations and drop videos that can't be embedded — they fail silently in
   the player otherwise.
 
+### Only medium-length videos
+
+Searches send `videoDuration=medium`, so YouTube returns only 4–20 minute videos
+(`SEARCH_DURATION` in `server/youtubeSearch.js`). This is something you start and
+then drive: a one- or two-minute clip is over before it earns the reach, and an
+unrestricted `type=video` search returns a great many of them.
+
+Filtering at the API rather than on the results is the point. A search costs 100
+units whether it returns 5 videos or 50, so a `medium` search yields ~50 usable
+videos where an `any` search filtered afterwards yielded ~30 — same price,
+two-thirds more content, and a deeper pool for rows and the Trip Planner.
+
+`videoDuration` accepts **one** bucket — short (<4m) / medium (4–20m) / long
+(>20m) — and only works alongside `type=video`. Two consequences to know before
+changing it:
+
+- **Videos over 20 minutes are excluded**, deliberately. Adding them back means a
+  second `search.list` for the `long` bucket at another 100 units, halving the
+  ~100 searches a day the quota allows. Don't do it casually.
+- The duration chips in `FILTER_OPTIONS` ("20–60 min", "Over 60 min") now only
+  match content cached from before this change. Re-bucketing them within 4–20 min
+  is an open follow-up.
+
+`MIN_DURATION_MINUTES` (4) restates where `medium` starts, for the two paths the
+API never touches:
+
+- `loadSeed` — `cache-seed.json` was captured when searches were unrestricted and
+  is ~35% shorts, so unfiltered it would serve them on exactly the days the seed
+  is what's answering (cold start, spent quota);
+- `present` in `src/lib/youtube.js` — `localStorage` entries written before this
+  stay readable for `STALE_KEEP_MS` (30 days).
+
+It's a floor and **not** a ceiling: long videos already cached stay usable, and
+`seedPersist.js` gradually replaces the snapshot with medium-only results. In
+`present`, filter **before** slicing to `maxResults` — slicing an old unfiltered
+entry first spends a row's eight slots on shorts and then discards them.
+
+The live-path `filter` after `videos.list` looks redundant now but isn't: live
+streams and premieres satisfy the search and report `P0D`, which parses to 0.
+
 ### When the quota is gone
 
 Running out is normal, not an error state, so nothing shows a warning if it can

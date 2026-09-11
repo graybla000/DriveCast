@@ -31,6 +31,32 @@ const EMPTY_CACHE_TTL_MS = 10 * 60 * 1000;
 // worth of content. Fetching 50 once and slicing per caller makes those the same
 // cache entry.
 const FETCH_SIZE = 50;
+
+// Ask YouTube for medium-length videos only. Its buckets are short (<4m), medium
+// (4-20m) and long (>20m), and exactly one can be requested per search.
+//
+// This is something you start and then drive, so a one- or two-minute clip is
+// over before it earns the reach, and an unrestricted `type=video` search returns
+// a great many of them. Asking the API to exclude them beats filtering the
+// results afterwards: the price is 100 units either way, so `medium` yields ~50
+// usable videos per search where a filtered `any` yielded about 30.
+//
+// The cost, accepted deliberately: videos over 20 minutes are excluded too.
+// Keeping them would mean a second search for the `long` bucket at another 100
+// units, which would halve the ~100 searches a day the quota allows.
+const SEARCH_DURATION = "medium";
+
+// Where `medium` starts, restated for the two paths that don't run a live search.
+//
+// cache-seed.json and the client's localStorage were both written when searches
+// were unrestricted, and roughly a third of what they hold is under four minutes.
+// Without a floor they'd serve precisely the clips SEARCH_DURATION exists to
+// avoid, on the days they're what's answering: cold start and spent quota.
+//
+// Only a floor, not a ceiling — anything long already cached stays usable, and
+// seedPersist.js gradually replaces the snapshot with medium-only results anyway.
+export const MIN_DURATION_MINUTES = 4;
+
 const cache = new Map();
 
 /* -------------------------------------------------------------- seeding -- */
@@ -63,7 +89,9 @@ function loadSeed() {
       const cacheKey = key.replace(/^drivecast:yt:/, "").trim().toLowerCase();
       const data = Array.isArray(value) ? value : value?.data;
       if (!cacheKey || !Array.isArray(data)) continue;
-      const items = data.filter((v) => v?.id);
+      // This snapshot was captured before SEARCH_DURATION existed, so the API
+      // can't have filtered it — hence the floor here. See MIN_DURATION_MINUTES.
+      const items = data.filter((v) => v?.id && (v.duration ?? 0) >= MIN_DURATION_MINUTES);
       if (!items.length) continue;
 
       // Deliberately stamped as already expired: the seed is a floor, not a
@@ -223,6 +251,8 @@ export async function searchVideos(query, { maxResults = 12, fallbackQuery = "" 
       part: "snippet",
       type: "video",
       videoEmbeddable: "true",
+      // Only meaningful alongside type=video, which is set just above.
+      videoDuration: SEARCH_DURATION,
       q: trimmed,
       maxResults: String(FETCH_SIZE),
     });
@@ -251,8 +281,10 @@ export async function searchVideos(query, { maxResults = 12, fallbackQuery = "" 
         thumbnail: thumbnailUrl(v.id),
         publishedAt: v.snippet?.publishedAt ?? null,
       }))
-      // Drop live streams and premieres, which report no usable duration.
-      .filter((v) => v.duration > 0);
+      // SEARCH_DURATION has already excluded anything short, so this is really
+      // here for live streams and premieres: they satisfy the search but report
+      // their duration as P0D, which parses to 0.
+      .filter((v) => v.duration >= MIN_DURATION_MINUTES);
 
     // The full fetch is cached; the caller gets only what it asked for.
     cache.set(cacheKey, { at: Date.now(), data: items });
