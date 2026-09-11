@@ -311,24 +311,45 @@ export const RECENT_SEARCHES_DEFAULT = [
   "tolerance stack up",
 ];
 
+/**
+ * Duration chips, as terciles of what searches actually return.
+ *
+ * Searches ask YouTube for its `medium` bucket, so results run 4–20 minutes (see
+ * "Only medium-length videos" in AGENTS.md). The old 20 / 60-minute boundaries
+ * divided a range the app no longer fetches: every new video landed in "Under
+ * 20 min" and the other two chips matched nothing at all. 8 and 12 split the real
+ * spread about evenly — measured across the seed at 29% / 38% / 33% — so each
+ * chip actually narrows the deck.
+ *
+ * The last bucket is deliberately open-ended rather than capped at 20. Videos
+ * over 20 minutes aren't fetched any more, but plenty sit in caches from before
+ * that changed, and a capped bucket would leave them unreachable through the
+ * filter for as long as they stick around.
+ *
+ * The ids avoid the words short/medium/long on purpose: those name YouTube's own
+ * duration buckets in server/youtubeSearch.js, which mean different spans, and
+ * having both in play under one name invites exactly the wrong assumption.
+ */
+export const DURATION_BUCKETS = [
+  { id: "under8", label: "Under 8 min", matches: (m) => m < 8 },
+  { id: "8to12", label: "8–12 min", matches: (m) => m >= 8 && m <= 12 },
+  { id: "over12", label: "Over 12 min", matches: (m) => m > 12 },
+];
+
+export const durationLabel = (id) => DURATION_BUCKETS.find((b) => b.id === id)?.label ?? id;
+
 // Filters that actually mean something for YouTube results. The old catalog also
 // filtered on distance/kidFriendly/free/setting — none of which the API provides,
 // so offering them would have been fiction.
 export const FILTER_OPTIONS = {
   category: CATEGORIES.map((c) => ({ id: c.id, label: c.name })),
-  duration: [
-    { id: "short", label: "Under 20 min" },
-    { id: "medium", label: "20–60 min" },
-    { id: "long", label: "Over 60 min" },
-  ],
+  duration: DURATION_BUCKETS,
 };
 
-const inDurationBucket = (minutes, bucket) => {
-  if (bucket === "short") return minutes < 20;
-  if (bucket === "medium") return minutes >= 20 && minutes <= 60;
-  if (bucket === "long") return minutes > 60;
-  return true;
-};
+// An unknown id matches everything rather than nothing, so a stale filter can
+// never silently empty the deck.
+const inDurationBucket = (minutes, bucketId) =>
+  DURATION_BUCKETS.find((b) => b.id === bucketId)?.matches(minutes ?? 0) ?? true;
 
 /** Client-side refinement of whatever the API returned. */
 export function applyFilters(videos, filters) {

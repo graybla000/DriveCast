@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SlidersHorizontal, X, RotateCw, Sparkles, ChevronLeft, ChevronRight, KeyRound, AlertCircle } from "lucide-react";
 import { useAppStore } from "@/lib/AppStore";
-import { applyFilters, CATEGORIES, FEATURED_CATEGORY_IDS, queriesForCategory, surpriseFrom } from "@/lib/contentData";
+import { applyFilters, CATEGORIES, durationLabel, FEATURED_CATEGORY_IDS, queriesForCategory, surpriseFrom } from "@/lib/contentData";
 import { useYouTubeSearches } from "@/hooks/useYouTubeSearch";
 import { seededShuffle, seedFrom } from "@/lib/shuffle";
 import RecommendationCard from "@/components/RecommendationCard";
@@ -132,7 +132,7 @@ export default function Explore() {
             <FilterChip key={id} label={CATEGORIES.find((c) => c.id === id)?.name} onRemove={() => setFilters((f) => ({ ...f, category: f.category.filter((x) => x !== id) }))} />
           ))}
           {filters.duration?.map((id) => (
-            <FilterChip key={id} label={id} onRemove={() => setFilters((f) => ({ ...f, duration: f.duration.filter((x) => x !== id) }))} />
+            <FilterChip key={id} label={durationLabel(id)} onRemove={() => setFilters((f) => ({ ...f, duration: f.duration.filter((x) => x !== id) }))} />
           ))}
         </div>
       )}

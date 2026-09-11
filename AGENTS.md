@@ -114,9 +114,10 @@ changing it:
 - **Videos over 20 minutes are excluded**, deliberately. Adding them back means a
   second `search.list` for the `long` bucket at another 100 units, halving the
   ~100 searches a day the quota allows. Don't do it casually.
-- The duration chips in `FILTER_OPTIONS` ("20–60 min", "Over 60 min") now only
-  match content cached from before this change. Re-bucketing them within 4–20 min
-  is an open follow-up.
+- `DURATION_BUCKETS` in `src/lib/contentData.js` is sized to this range —
+  under 8 / 8–12 / over 12, the terciles of what a `medium` search returns. Change
+  the bucket here and those chips stop dividing anything; that's exactly how the
+  old 20 / 60-minute boundaries ended up matching nothing.
 
 `MIN_DURATION_MINUTES` (4) restates where `medium` starts, for the two paths the
 API never touches:
